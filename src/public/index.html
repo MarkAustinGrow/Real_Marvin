@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marvin AI Agent - Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      padding-top: 2rem;
+    }
+    .tweet-preview {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 20px;
+      background-color: white;
+    }
+    .status-card {
+      margin-bottom: 20px;
+    }
+    .hashtags {
+      color: #1DA1F2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mb-4">Marvin AI Agent - Admin Interface</h1>
+    
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card status-card">
+          <div class="card-header">Status</div>
+          <div class="card-body" id="status-container">
+            <p>Loading status...</p>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">Generate Test Tweet</div>
+          <div class="card-body">
+            <form id="tweet-form">
+              <div class="mb-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" required>
+                  <option value="" disabled selected>Select a category</option>
+                  <!-- Categories will be loaded dynamically -->
+                </select>
+              </div>
+              
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-primary" id="preview-btn">Preview Tweet</button>
+                <button type="submit" class="btn btn-danger">Post Test Tweet</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-8">
+        <div class="tweet-preview" id="preview-container">
+          <h5>Tweet Preview</h5>
+          <p class="text-muted">Generate a preview to see how your tweet will look</p>
+          <div id="tweet-content"></div>
+          <div id="tweet-hashtags" class="hashtags mt-2"></div>
+        </div>
+        
+        <div class="alert alert-info mt-3" role="alert">
+          <h5>Note:</h5>
+          <p>This interface allows you to test tweet generation and posting outside of the scheduled times (9 AM and 5 PM).</p>
+          <p>Use the "Preview" button to see how a tweet will look without posting it.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Load categories
+      fetch('/api/categories')
+        .then(response => response.json())
+        .then(data => {
+          const select = document.getElementById('category');
+          data.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            select.appendChild(option);
+          });
+        })
+        .catch(error => {
+          console.error('Error loading categories:', error);
+          alert('Failed to load categories. Please refresh the page.');
+        });
+      
+      // Load status
+      function updateStatus() {
+        fetch('/api/status')
+          .then(response => response.json())
+          .then(data => {
+            const container = document.getElementById('status-container');
+            const nextTweetDate = new Date(data.nextScheduledTweet);
+            const hoursUntil = Math.floor(data.timeUntilNextTweet / (1000 * 60 * 60));
+            const minutesUntil = Math.floor((data.timeUntilNextTweet % (1000 * 60 * 60)) / (1000 * 60));
+            
+            container.innerHTML = `
+              <p><strong>Status:</strong> ${data.status}</p>
+              <p><strong>Next scheduled tweet:</strong><br>${nextTweetDate.toLocaleString()}</p>
+              <p><strong>Time until next tweet:</strong><br>${hoursUntil}h ${minutesUntil}m</p>
+            `;
+          })
+          .catch(error => {
+            console.error('Error loading status:', error);
+            document.getElementById('status-container').innerHTML = 
+              '<div class="alert alert-danger">Failed to load status. Please refresh the page.</div>';
+          });
+      }
+      
+      updateStatus();
+      setInterval(updateStatus, 60000); // Update every minute
+      
+      // Preview button
+      document.getElementById('preview-btn').addEventListener('click', function() {
+        const category = document.getElementById('category').value;
+        if (!category) {
+          alert('Please select a category');
+          return;
+        }
+        
+        document.getElementById('preview-btn').disabled = true;
+        document.getElementById('preview-btn').textContent = 'Generating...';
+        
+        fetch('/api/test-tweet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            category,
+            previewOnly: true
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('preview-btn').disabled = false;
+          document.getElementById('preview-btn').textContent = 'Preview Tweet';
+          
+          if (data.success) {
+            document.getElementById('tweet-content').textContent = data.content.text;
+            document.getElementById('tweet-hashtags').textContent = 
+              data.content.hashtags ? `Hashtags: ${data.content.hashtags.join(', ')}` : '';
+          } else {
+            alert('Error generating preview: ' + data.message);
+          }
+        })
+        .catch(error => {
+          document.getElementById('preview-btn').disabled = false;
+          document.getElementById('preview-btn').textContent = 'Preview Tweet';
+          console.error('Error:', error);
+          alert('Failed to generate preview. Please try again.');
+        });
+      });
+      
+      // Post tweet form
+      document.getElementById('tweet-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const category = document.getElementById('category').value;
+        if (!category) {
+          alert('Please select a category');
+          return;
+        }
+        
+        if (!confirm('Are you sure you want to post this test tweet?')) {
+          return;
+        }
+        
+        const submitBtn = document.querySelector('#tweet-form button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Posting...';
+        
+        fetch('/api/test-tweet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            category,
+            previewOnly: false
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Post Test Tweet';
+          
+          if (data.success) {
+            alert('Tweet posted successfully!');
+            document.getElementById('tweet-content').textContent = data.content.text;
+            document.getElementById('tweet-hashtags').textContent = 
+              data.content.hashtags ? `Hashtags: ${data.content.hashtags.join(', ')}` : '';
+          } else {
+            alert('Error posting tweet: ' + data.message);
+          }
+        })
+        .catch(error => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Post Test Tweet';
+          console.error('Error:', error);
+          alert('Failed to post tweet. Please try again.');
+        });
+      });
+    });
+  </script>
+</body>
+</html>

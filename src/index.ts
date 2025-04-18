@@ -1,5 +1,6 @@
 import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
+import { startWebServer } from './web-server';
 
 // Categories for tweet generation
 const categories = [
@@ -122,6 +123,10 @@ function scheduleNextTweet(morningHour: number = 9, eveningHour: number = 17) {
 async function main() {
     console.log('Starting Marvin AI Agent with scheduled posting...');
     console.log('Tweets will be posted twice daily at 9:00 AM and 5:00 PM');
+    
+    // Start the web server
+    startWebServer();
+    console.log('Web interface is available for testing tweets');
     
     // Schedule the first tweet
     scheduleNextTweet(9, 17);

@@ -5,8 +5,12 @@ services:
     build: .
     container_name: real-marvin
     restart: always
+    ports:
+      - "3000:3000"  # Expose web interface port
     environment:
       - NODE_ENV=production
+      - WEB_PORT=3000
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-marvin}  # Default password if not set
       # YouTube API Credentials
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
       - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
