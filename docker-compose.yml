@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  real-marvin:
+    build: .
+    container_name: real-marvin
+    restart: always
+    environment:
+      - NODE_ENV=production
+      # YouTube API Credentials
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+      - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID}
+      - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET}
+      - YOUTUBE_CHANNEL_ID=${YOUTUBE_CHANNEL_ID}
+      # MusicAPI/Suno API Key
+      - MUSICAPI_KEY=${MUSICAPI_KEY}
+      # OpenAI API Key
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Supabase Credentials
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      # Sonoteller API Key
+      - SONOTELLER_API_KEY=${SONOTELLER_API_KEY}
+      # RunwayML API Secret
+      - RUNWAYML_API_SECRET=${RUNWAYML_API_SECRET}
+      # Kling AI API Key
+      - KLING_ACCESS_ID=${KLING_ACCESS_ID}
+      - KLING_ACCESS_SECRET=${KLING_ACCESS_SECRET}
+      # Video Server Configuration
+      - VIDEO_SERVER=${VIDEO_SERVER}
+      - VIDEO_SERVER_USER=${VIDEO_SERVER_USER}
+      - VIDEO_SERVER_PASSWORD=${VIDEO_SERVER_PASSWORD}
+      # PiAPI Key for Kling AI
+      - PiAPI_Key=${PiAPI_Key}
+      # ImgBB API Key for image hosting
+      - IMGBB_API_KEY=${IMGBB_API_KEY}
+      # Twitter API Credentials
+      - TWITTER_API_KEY=${TWITTER_API_KEY}
+      - TWITTER_API_SECRET=${TWITTER_API_SECRET}
+      - TWITTER_ACCESS_TOKEN=${TWITTER_ACCESS_TOKEN}
+      - TWITTER_ACCESS_TOKEN_SECRET=${TWITTER_ACCESS_TOKEN_SECRET}
+      - TWITTER_BEARER_TOKEN=${TWITTER_BEARER_TOKEN}
+    volumes:
+      - ./logs:/app/logs
