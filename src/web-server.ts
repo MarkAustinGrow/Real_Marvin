@@ -13,7 +13,7 @@ export function startWebServer() {
     users: { 'admin': process.env.ADMIN_PASSWORD || 'marvin' },
     challenge: true,
     realm: 'Marvin Admin Interface'
-  }));
+  } as any));
   
   // Create public directory if it doesn't exist
   const publicDir = path.join(__dirname, 'public');
