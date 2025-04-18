@@ -15,11 +15,24 @@ export function startWebServer() {
     realm: 'Marvin Admin Interface'
   } as any));
   
-  // Create public directory if it doesn't exist
-  const publicDir = path.join(__dirname, 'public');
+  // Path to the public directory
+  // In development, it's in src/public
+  // In production (Docker), it's copied to dist/src/public
+  const publicDir = path.resolve(__dirname, 'public');
+  console.log('Public directory path:', publicDir);
   
   // Serve static files
   app.use(express.static(publicDir));
+  
+  // Fallback for serving index.html
+  app.use((req: Request, res: Response, next: express.NextFunction) => {
+    if (req.path === '/') {
+      console.log('Serving index.html from:', path.join(publicDir, 'index.html'));
+      res.sendFile(path.join(publicDir, 'index.html'));
+    } else {
+      next();
+    }
+  });
   app.use(express.json());
   
   // API endpoints

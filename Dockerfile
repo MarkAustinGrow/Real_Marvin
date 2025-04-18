@@ -14,6 +14,10 @@ COPY . .
 # Build TypeScript files
 RUN npm run build
 
+# Ensure the public directory is copied to the dist directory
+RUN mkdir -p dist/src/public
+RUN cp -r src/public/* dist/src/public/
+
 # Set environment variables (these can be overridden at runtime)
 ENV NODE_ENV=production
 
