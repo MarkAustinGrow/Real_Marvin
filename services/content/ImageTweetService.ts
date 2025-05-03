@@ -2,7 +2,7 @@ import { SupabaseService } from '../supabase/SupabaseService';
 import { AnthropicService } from '../anthropic/AnthropicService';
 import { TwitterService } from '../twitter/TwitterService';
 import { PostContent } from '../../types';
-import axios from 'axios';
+import type { AxiosResponse, AxiosRequestConfig } from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -108,6 +108,9 @@ export class ImageTweetService {
             // Create a temporary file path
             const tempPath = path.join(os.tmpdir(), `marvin_temp_${Date.now()}.png`);
             const writer = fs.createWriteStream(tempPath);
+            
+            // Dynamically import axios
+            const { default: axios } = await import('axios');
             
             // Download the image
             const response = await axios({
