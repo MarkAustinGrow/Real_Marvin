@@ -1,4 +1,4 @@
-import type { AxiosResponse, AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import { config } from '../../config';
 
 export class AnthropicService {
@@ -39,9 +39,6 @@ export class AnthropicService {
             
             Tweet:`;
 
-            // Dynamically import axios
-            const { default: axios } = await import('axios');
-            
             const response = await axios.post(
                 `${this.baseUrl}/messages`,
                 {
