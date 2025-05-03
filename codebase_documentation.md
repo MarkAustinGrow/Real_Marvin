@@ -6,7 +6,7 @@ Marvin AI Agent is an autonomous AI character that generates and manages content
 ## Tech Stack
 - **Backend**: Node.js with TypeScript
 - **Database**: Supabase (PostgreSQL)
-- **Content Generation**: OpenAI API
+- **Content Generation**: OpenAI API, Anthropic Claude API
 - **Image Generation**: Stable Diffusion/Midjourney/DALL·E
 - **Voice Generation**: ElevenLabs/PlayHT
 - **Content Management**: WordPress REST API
@@ -16,12 +16,18 @@ Marvin AI Agent is an autonomous AI character that generates and manages content
 ```
 Real-Marvin/
 ├── src/
-│   └── index.ts              # Application entry point
+│   ├── index.ts              # Application entry point
+│   └── test-image-tweet.ts   # Test script for image tweets
 ├── services/
 │   ├── supabase/
 │   │   └── SupabaseService.ts # Database interaction layer
-│   └── content/
-│       └── ContentGenerator.ts # Content generation service
+│   ├── content/
+│   │   ├── ContentGenerator.ts # Content generation service
+│   │   └── ImageTweetService.ts # Image tweet service
+│   ├── anthropic/
+│   │   └── AnthropicService.ts # Anthropic Claude integration
+│   └── twitter/
+│       └── TwitterService.ts  # Twitter API integration
 ├── config/
 │   └── index.ts              # Configuration management
 └── types/
@@ -43,6 +49,12 @@ Create a `.env` file in the root directory with the following variables:
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_KEY=your_supabase_service_role_key
 OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+TWITTER_API_KEY=your_twitter_api_key
+TWITTER_API_SECRET=your_twitter_api_secret
+TWITTER_ACCESS_TOKEN=your_twitter_access_token
+TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
+TWITTER_BEARER_TOKEN=your_twitter_bearer_token
 ```
 
 ### 3. Database Schema
@@ -111,6 +123,33 @@ Features:
 - Social media content creation
 - Response generation for interactions
 
+### 3. AnthropicService
+The `AnthropicService` class integrates with the Anthropic Claude API to generate poetic and creative content.
+
+Key methods:
+- `getInstance()`: Returns the singleton instance
+- `generateTweet(promptText: string)`: Generates a tweet based on a prompt text
+
+### 4. ImageTweetService
+The `ImageTweetService` class handles the generation and posting of tweets that include Marvin's artwork.
+
+Key methods:
+- `getInstance()`: Returns the singleton instance
+- `generateAndPostImageTweet()`: Generates and posts a tweet with artwork
+- `downloadImage(url: string)`: Downloads an image from a URL to a temporary file
+- `getRandomImage()`: Gets a random image from the database
+- `getPromptById(promptId: string)`: Gets a prompt by ID
+- `generateTweetTextForImage(promptText: string)`: Generates tweet text for an image
+
+### 5. TwitterService
+The `TwitterService` class handles interactions with the Twitter API.
+
+Key methods:
+- `getInstance()`: Returns the singleton instance
+- `postTweet(content: PostContent, mediaIds?: string[])`: Posts content to Twitter
+- `uploadMedia(mediaPath: string)`: Uploads media to Twitter
+- `formatContent(content: PostContent)`: Formats content for Twitter
+
 ## Development Guidelines
 
 ### 1. Code Style
@@ -155,6 +194,17 @@ Features:
 ## Roadmap and Future Improvements
 See `Roadmap.md` for detailed development phases and upcoming features.
 
+For image tweet functionality specifically, see `Image_Tweets.md` for implementation details.
+
+## Scheduled Tasks
+The application runs the following scheduled tasks:
+
+1. Morning Tweet (9:00 AM): Regular text tweet
+2. Afternoon Tweet (1:00 PM): Image tweet with artwork
+3. Evening Tweet (5:00 PM): Regular text tweet
+
+The image tweets use Anthropic Claude to generate poetic descriptions based on the artwork's original prompt.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -181,4 +231,4 @@ See `Roadmap.md` for detailed development phases and upcoming features.
 5. Create a Pull Request
 
 ## License
-[Add appropriate license information] 
+[Add appropriate license information]
