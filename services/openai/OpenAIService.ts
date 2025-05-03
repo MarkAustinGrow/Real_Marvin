@@ -3,14 +3,21 @@ import { config } from '../../config';
 import { CharacterData } from '../supabase/SupabaseService';
 
 export class OpenAIService {
-    private openai: OpenAIApi;
+    private _openai: OpenAIApi;
     private static instance: OpenAIService;
 
     private constructor() {
         const configuration = new Configuration({
             apiKey: config.openai.apiKey,
         });
-        this.openai = new OpenAIApi(configuration);
+        this._openai = new OpenAIApi(configuration);
+    }
+
+    /**
+     * Get the OpenAI API instance
+     */
+    public get openai(): OpenAIApi {
+        return this._openai;
     }
 
     public static getInstance(): OpenAIService {
@@ -31,7 +38,7 @@ export class OpenAIService {
             const prompt = this.buildPrompt(characterData, category);
             
             // Try using createChatCompletion instead of createCompletion for GPT models
-            const response = await this.openai.createChatCompletion({
+            const response = await this._openai.createChatCompletion({
                 model: "gpt-3.5-turbo", // Fallback to GPT-3.5 Turbo which is more widely available
                 messages: [
                     { role: "system", content: prompt }

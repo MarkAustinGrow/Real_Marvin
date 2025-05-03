@@ -83,7 +83,9 @@ export class TwitterService {
      */
     public async uploadMedia(mediaPath: string): Promise<string> {
         try {
+            console.log(`Uploading media from path: ${mediaPath}`);
             const mediaId = await this.client.v1.uploadMedia(mediaPath);
+            console.log(`Media uploaded successfully with ID: ${mediaId}`);
             return mediaId;
         } catch (error) {
             console.error('Error uploading media:', error);

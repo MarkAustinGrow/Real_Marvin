@@ -17,6 +17,9 @@ export const config = {
     },
     openai: {
         apiKey: process.env.OPENAI_API_KEY || '',
+    },
+    anthropic: {
+        apiKey: process.env.ANTHROPIC_API_KEY || '',
     }
 };
 
@@ -28,11 +31,12 @@ const requiredEnvVars = [
     'TWITTER_ACCESS_TOKEN_SECRET',
     'SUPABASE_URL',
     'SUPABASE_KEY',
-    'OPENAI_API_KEY'
+    'OPENAI_API_KEY',
+    'ANTHROPIC_API_KEY'
 ];
 
 requiredEnvVars.forEach(envVar => {
     if (!process.env[envVar]) {
         throw new Error(`Missing required environment variable: ${envVar}`);
     }
-}); 
+});

@@ -7,10 +7,12 @@
     "start": "ts-node -r tsconfig-paths/register src/index.ts",
     "build": "tsc",
     "dev": "nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
-    "test": "jest"
+    "test": "jest",
+    "test-image-tweet": "ts-node -r tsconfig-paths/register src/test-image-tweet.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.21.0",
+    "axios": "^1.6.2",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "express-basic-auth": "^1.2.1",

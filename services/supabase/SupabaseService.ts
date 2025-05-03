@@ -23,16 +23,23 @@ export interface CharacterData {
 }
 
 export class SupabaseService {
-    private client: SupabaseClient;
+    private _client: SupabaseClient;
     private static instance: SupabaseService;
 
     private constructor() {
         console.log('Initializing Supabase with URL:', config.supabase.url);
         console.log('API Key type:', config.supabase.key.startsWith('eyJ') ? 'Service Role Key' : 'Anon Key');
-        this.client = createClient(
+        this._client = createClient(
             config.supabase.url,
             config.supabase.key
         );
+    }
+
+    /**
+     * Get the Supabase client instance
+     */
+    public get client(): SupabaseClient {
+        return this._client;
     }
 
     public static getInstance(): SupabaseService {
@@ -50,7 +57,7 @@ export class SupabaseService {
             console.log('Testing database connection...');
             
             // Get all records to verify connection
-            const { data, error } = await this.client
+            const { data, error } = await this._client
                 .from('character_files')
                 .select('id, agent_name, display_name');
             
@@ -83,7 +90,7 @@ export class SupabaseService {
             console.log(`Fetching character data for agent: ${agentName}`);
             
             // Try to find a character with matching name using a simple query
-            const { data, error } = await this.client
+            const { data, error } = await this._client
                 .from('character_files')
                 .select()
                 .ilike('agent_name', agentName)
@@ -93,7 +100,7 @@ export class SupabaseService {
                 if (error.code === 'PGRST116') {
                     // No rows returned, try fuzzy search
                     console.log('No exact match found, trying fuzzy search...');
-                    const { data: fuzzyData, error: fuzzyError } = await this.client
+            const { data: fuzzyData, error: fuzzyError } = await this._client
                         .from('character_files')
                         .select()
                         .ilike('agent_name', `%${agentName}%`)
@@ -130,4 +137,4 @@ export class SupabaseService {
             throw new Error('Failed to fetch character data');
         }
     }
-} 
+}
