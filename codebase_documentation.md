@@ -112,6 +112,24 @@ create index idx_engagement_metrics_date on engagement_metrics(date);
 create index idx_engagement_metrics_platform on engagement_metrics(platform);
 ```
 
+#### images
+The images table stores artwork data used for image tweets:
+```sql
+create table images (
+    id uuid primary key default uuid_generate_v4(),
+    prompt_id uuid references prompts(id),
+    image_url text,
+    x_posted boolean default false,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Add indexes
+create index idx_images_prompt_id on images(prompt_id);
+create index idx_images_x_posted on images(x_posted);
+```
+
+The `x_posted` flag tracks whether an image has been posted to X (Twitter) to prevent duplicate posts.
+
 The `content` field should contain a JSON object with the following structure:
 ```json
 {
@@ -171,9 +189,12 @@ Key methods:
 - `getInstance()`: Returns the singleton instance
 - `generateAndPostImageTweet()`: Generates and posts a tweet with artwork
 - `downloadImage(url: string)`: Downloads an image from a URL to a temporary file
-- `getRandomImage()`: Gets a random image from the database
+- `getRandomImage()`: Gets a random image from the database that hasn't been posted yet (x_posted = false)
+- `markImageAsPosted(imageId: string)`: Marks an image as posted to prevent future duplication
 - `getPromptById(promptId: string)`: Gets a prompt by ID
 - `generateTweetTextForImage(promptText: string)`: Generates tweet text for an image
+
+The service includes a duplicate prevention system that tracks which images have been posted to X (Twitter) using the x_posted flag in the database. After successfully posting an image, it marks the image as posted to ensure it won't be selected for future tweets.
 
 ### 5. TwitterService
 The `TwitterService` class handles interactions with the Twitter API.
