@@ -86,6 +86,9 @@ export class ImageTweetService {
 
             if (postResult.success) {
                 console.log(`✅ ${postResult.message}`);
+                // Mark the image as posted to prevent reposting
+                await this.markImageAsPosted(image.id);
+                console.log(`Image ${image.id} marked as posted to prevent future duplication`);
             } else {
                 console.log(`\n❌ ERROR: Image tweet could not be posted to Twitter`);
                 console.log(`Error details: ${postResult.message}`);
@@ -139,10 +142,12 @@ export class ImageTweetService {
     private async getRandomImage() {
         try {
             // Query for images that have an image_url (since we need this to upload to Twitter)
+            // and haven't been posted yet (x_posted = false)
             const { data, error } = await this.supabaseService.client
                 .from('images')
                 .select('*')
                 .not('image_url', 'is', null)
+                .eq('x_posted', false)
                 .order('created_at', { ascending: false })
                 .limit(10);
 
@@ -183,6 +188,31 @@ export class ImageTweetService {
         } catch (error) {
             console.error('Error in getPromptById:', error);
             return null;
+        }
+    }
+
+    /**
+     * Marks an image as posted in the database
+     * @param imageId The ID of the image to mark as posted
+     * @returns Whether the operation was successful
+     */
+    private async markImageAsPosted(imageId: string): Promise<boolean> {
+        try {
+            const { error } = await this.supabaseService.client
+                .from('images')
+                .update({ x_posted: true })
+                .eq('id', imageId);
+                
+            if (error) {
+                console.error('Error marking image as posted:', error);
+                return false;
+            }
+            
+            console.log(`Image ${imageId} marked as posted`);
+            return true;
+        } catch (error) {
+            console.error('Error in markImageAsPosted:', error);
+            return false;
         }
     }
 
