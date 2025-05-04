@@ -74,6 +74,19 @@
             </form>
           </div>
         </div>
+        
+        <div class="card mt-4">
+          <div class="card-header">Engagement Rules</div>
+          <div class="card-body">
+            <div id="rules-container">
+              <p>Loading engagement rules...</p>
+            </div>
+            <div class="d-grid gap-2 mt-3">
+              <button type="button" class="btn btn-primary" id="add-rule-btn">Add Rule</button>
+              <button type="button" class="btn btn-success" id="save-rules-btn">Save Rules</button>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="col-md-8">
@@ -229,6 +242,193 @@
           alert('Failed to post tweet. Please try again.');
         });
       });
+      
+      // Engagement Rules
+      function loadEngagementRules() {
+        fetch('/api/engagement/rules')
+          .then(response => response.json())
+          .then(data => {
+            renderRules(data.rules);
+          })
+          .catch(error => {
+            console.error('Error loading rules:', error);
+            document.getElementById('rules-container').innerHTML = 
+              '<div class="alert alert-danger">Failed to load engagement rules. Please refresh the page.</div>';
+          });
+      }
+      
+      function renderRules(rules) {
+        const container = document.getElementById('rules-container');
+        container.innerHTML = '';
+        
+        if (!rules || rules.length === 0) {
+          container.innerHTML = '<p>No engagement rules defined.</p>';
+          return;
+        }
+        
+        rules.forEach((rule, index) => {
+          const ruleCard = document.createElement('div');
+          ruleCard.className = 'card mb-3 rule-card';
+          ruleCard.dataset.index = index.toString();
+          
+          ruleCard.innerHTML = `
+            <div class="card-body">
+              <div class="mb-2">
+                <label class="form-label">Engagement Type</label>
+                <select class="form-select rule-type">
+                  <option value="like" ${rule.type === 'like' ? 'selected' : ''}>Like</option>
+                  <option value="repost" ${rule.type === 'repost' ? 'selected' : ''}>Repost</option>
+                  <option value="reply" ${rule.type === 'reply' ? 'selected' : ''}>Reply</option>
+                  <option value="follow" ${rule.type === 'follow' ? 'selected' : ''}>Follow</option>
+                  <option value="mention" ${rule.type === 'mention' ? 'selected' : ''}>Mention</option>
+                  <option value="any" ${rule.type === 'any' ? 'selected' : ''}>Any</option>
+                </select>
+              </div>
+              
+              <div class="mb-2">
+                <label class="form-label">Condition</label>
+                <select class="form-select rule-condition">
+                  <option value="count" ${rule.condition === 'count' ? 'selected' : ''}>Count</option>
+                  <option value="verified" ${rule.condition === 'verified' ? 'selected' : ''}>Verified</option>
+                  <option value="first_time" ${rule.condition === 'first_time' ? 'selected' : ''}>First Time</option>
+                  <option value="art_focused" ${rule.condition === 'art_focused' ? 'selected' : ''}>Art Focused</option>
+                </select>
+              </div>
+              
+              <div class="mb-2 threshold-group" ${rule.condition !== 'count' ? 'style="display:none;"' : ''}>
+                <label class="form-label">Threshold</label>
+                <input type="number" class="form-control rule-threshold" min="1" value="${rule.threshold || 1}">
+              </div>
+              
+              <div class="mb-2 timeframe-group" ${rule.condition !== 'count' ? 'style="display:none;"' : ''}>
+                <label class="form-label">Timeframe (days)</label>
+                <input type="number" class="form-control rule-timeframe" min="1" value="${rule.timeframe_days || 7}">
+              </div>
+              
+              <div class="mb-2">
+                <label class="form-label">Action</label>
+                <select class="form-select rule-action">
+                  <option value="reply" ${rule.action === 'reply' ? 'selected' : ''}>Reply</option>
+                  <option value="log_only" ${rule.action === 'log_only' ? 'selected' : ''}>Log Only</option>
+                </select>
+              </div>
+              
+              <div class="mb-2">
+                <label class="form-label">Priority</label>
+                <input type="number" class="form-control rule-priority" min="1" value="${rule.priority}">
+              </div>
+              
+              <button type="button" class="btn btn-sm btn-danger delete-rule-btn">Delete Rule</button>
+            </div>
+          `;
+          
+          container.appendChild(ruleCard);
+          
+          // Add event listener for condition change
+          const conditionSelect = ruleCard.querySelector('.rule-condition');
+          conditionSelect.addEventListener('change', function() {
+            const thresholdGroup = ruleCard.querySelector('.threshold-group');
+            const timeframeGroup = ruleCard.querySelector('.timeframe-group');
+            
+            if (this.value === 'count') {
+              thresholdGroup.style.display = 'block';
+              timeframeGroup.style.display = 'block';
+            } else {
+              thresholdGroup.style.display = 'none';
+              timeframeGroup.style.display = 'none';
+            }
+          });
+          
+          // Add event listener for delete button
+          const deleteBtn = ruleCard.querySelector('.delete-rule-btn');
+          deleteBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete this rule?')) {
+              ruleCard.remove();
+            }
+          });
+        });
+      }
+      
+      // Add new rule
+      document.getElementById('add-rule-btn').addEventListener('click', function() {
+        const newRule = {
+          type: 'like',
+          condition: 'count',
+          threshold: 3,
+          timeframe_days: 7,
+          action: 'reply',
+          priority: 1
+        };
+        
+        const currentRules = collectRulesFromUI();
+        renderRules([...currentRules, newRule]);
+      });
+      
+      // Save rules
+      document.getElementById('save-rules-btn').addEventListener('click', function() {
+        const rules = collectRulesFromUI();
+        
+        if (rules.length === 0) {
+          alert('You must have at least one rule defined.');
+          return;
+        }
+        
+        const saveBtn = document.getElementById('save-rules-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        
+        fetch('/api/engagement/rules', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ rules })
+        })
+        .then(response => response.json())
+        .then(data => {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Rules';
+          
+          if (data.success) {
+            alert('Engagement rules saved successfully!');
+          } else {
+            alert('Error saving rules: ' + data.message);
+          }
+        })
+        .catch(error => {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Rules';
+          console.error('Error:', error);
+          alert('Failed to save rules. Please try again.');
+        });
+      });
+      
+      // Helper function to collect rules from UI
+      function collectRulesFromUI() {
+        const ruleCards = document.querySelectorAll('.rule-card');
+        const rules = [];
+        
+        ruleCards.forEach(card => {
+          const rule = {
+            type: card.querySelector('.rule-type').value,
+            condition: card.querySelector('.rule-condition').value,
+            action: card.querySelector('.rule-action').value,
+            priority: parseInt(card.querySelector('.rule-priority').value, 10)
+          };
+          
+          if (rule.condition === 'count') {
+            rule.threshold = parseInt(card.querySelector('.rule-threshold').value, 10);
+            rule.timeframe_days = parseInt(card.querySelector('.rule-timeframe').value, 10);
+          }
+          
+          rules.push(rule);
+        });
+        
+        return rules;
+      }
+      
+      // Load engagement rules
+      loadEngagementRules();
     });
   </script>
 </body>

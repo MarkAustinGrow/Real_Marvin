@@ -3,6 +3,7 @@ import path from 'path';
 import basicAuth from 'express-basic-auth';
 import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
+import { EngagementService } from '../services/engagement/EngagementService';
 
 export function startWebServer() {
   const app = express();
@@ -110,6 +111,34 @@ export function startWebServer() {
       nextScheduledTweet: nextTweetTime.toISOString(),
       timeUntilNextTweet: nextTweetTime.getTime() - now.getTime()
     });
+  });
+  
+  // Engagement rules endpoints
+  app.get('/api/engagement/rules', (req: Request, res: Response) => {
+    try {
+      const engagementService = EngagementService.getInstance();
+      res.json({ rules: engagementService.getRules() });
+    } catch (error: unknown) {
+      console.error('Error getting engagement rules:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/engagement/rules', express.json(), (req: Request, res: Response) => {
+    try {
+      const engagementService = EngagementService.getInstance();
+      engagementService.updateRules(req.body.rules);
+      res.json({ success: true, message: 'Rules updated successfully' });
+    } catch (error: unknown) {
+      console.error('Error updating engagement rules:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
   });
   
   // Main HTML page

@@ -51,6 +51,23 @@ You can generate and post test tweets:
 2. Click "Preview Tweet" to see how the tweet will look without posting it
 3. Click "Post Test Tweet" to generate and post a tweet immediately
 
+### Engagement Rules Management
+
+The engagement rules section allows you to configure how Marvin responds to user interactions:
+
+1. View existing engagement rules
+2. Add new rules with the "Add Rule" button
+3. Edit rule parameters:
+   - Engagement Type (like, repost, reply, follow, mention, any)
+   - Condition (count, verified, first_time, art_focused)
+   - Threshold and timeframe for count-based conditions
+   - Action (reply or log_only)
+   - Priority (higher numbers take precedence)
+4. Delete rules you no longer need
+5. Save changes with the "Save Rules" button
+
+Rules are evaluated in priority order, with the highest priority rule that matches being applied first.
+
 ### Categories
 
 The following categories are available for tweet generation:

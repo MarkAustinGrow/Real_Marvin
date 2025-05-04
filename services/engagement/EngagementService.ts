@@ -359,6 +359,29 @@ export class EngagementService {
     }
     
     /**
+     * Get the current engagement rules
+     * @returns Array of engagement rules
+     */
+    public getRules(): EngagementRule[] {
+        return [...this.rules];
+    }
+    
+    /**
+     * Update the engagement rules
+     * @param newRules New rules to set
+     */
+    public updateRules(newRules: EngagementRule[]): void {
+        // Validate rules
+        if (!Array.isArray(newRules) || newRules.length === 0) {
+            throw new Error('Invalid rules format');
+        }
+        
+        // Update rules
+        this.rules = newRules;
+        console.log('Engagement rules updated:', this.rules);
+    }
+    
+    /**
      * Generates a daily wrap-up of engagements
      * @returns The generated wrap-up text
      */
