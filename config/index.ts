@@ -20,6 +20,10 @@ export const config = {
     },
     anthropic: {
         apiKey: process.env.ANTHROPIC_API_KEY || '',
+    },
+    grok: {
+        apiKey: process.env.GROK_API_KEY || '',
+        apiEndpoint: process.env.GROK_API_ENDPOINT || 'https://api.grok.x/v1/chat/completions',
     }
 };
 
@@ -33,6 +37,7 @@ const requiredEnvVars = [
     'SUPABASE_KEY',
     'OPENAI_API_KEY',
     'ANTHROPIC_API_KEY'
+    // Note: GROK_API_KEY is optional and will fall back to OpenAI if not provided
 ];
 
 requiredEnvVars.forEach(envVar => {

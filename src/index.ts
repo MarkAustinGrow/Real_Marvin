@@ -2,6 +2,7 @@ import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
 import { ImageTweetService } from '../services/content/ImageTweetService';
 import { startWebServer } from './web-server';
+import { engagementScheduler } from './engagement-scheduler';
 
 // Categories for tweet generation
 const categories = [
@@ -142,6 +143,10 @@ async function main() {
     // Start the web server
     startWebServer();
     console.log('Web interface is available for testing tweets');
+    
+    // Start the engagement scheduler
+    engagementScheduler.start();
+    console.log('Engagement monitoring and response system activated');
     
     // Schedule the first tweet
     scheduleNextTweet(9, 13, 17);

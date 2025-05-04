@@ -8,9 +8,11 @@
 - Automatic hashtag generation and formatting
 - Twitter integration for automated posting
 - Scheduled posting three times daily (morning, afternoon, evening)
+- User engagement tracking and automated responses to interactions
+- Daily engagement wrap-ups highlighting fan interactions
 ## Technical Architecture
 - Node.js backend with TypeScript for type safety
-- Singleton pattern for service classes (SupabaseService, TwitterService, ContentGenerator, OpenAIService, AnthropicService, ImageTweetService)
+- Singleton pattern for service classes (SupabaseService, TwitterService, ContentGenerator, OpenAIService, AnthropicService, ImageTweetService, GrokService, EngagementService)
 - Modular design with separation of concerns between services
 - Database integration via Supabase (PostgreSQL)
 - AI content generation via OpenAI API and Anthropic Claude API
@@ -27,6 +29,11 @@
   - Associated prompt IDs
   - Generation settings
 - prompts table storing text prompts used to generate artwork
+- engagement_metrics table storing user interaction data including:
+  - User information (ID, username)
+  - Engagement type (like, repost, reply, follow, mention)
+  - Tweet information (ID, content)
+  - Timestamp data
 ## Components
 ### SupabaseService:
 - Database connection and query management
@@ -60,6 +67,26 @@
 - Content formatting to meet Twitter requirements
 - Media upload capabilities
 - Robust error handling for API failures
+- Engagement monitoring and tracking
+- Fetching likes, reposts, and replies for tweets
+
+### GrokService:
+- Integration with Grok API for humorous responses
+- OpenAI fallback when Grok API is unavailable
+- Character-consistent response generation
+- Dynamic prompt generation based on engagement context
+
+### EngagementService:
+- Tracking and logging user engagements
+- Rules-based engagement response system
+- Recurring fan detection and prioritization
+- Daily engagement wrap-up generation
+- Engagement metrics analysis
+
+### EngagementScheduler:
+- Scheduled engagement monitoring (every 30 minutes)
+- Daily wrap-up scheduling (9:00 PM)
+- Automated engagement response timing
 ## Error Handling
 - Comprehensive error handling throughout the application
 - Specific error messages for different failure scenarios
@@ -69,6 +96,8 @@
 - Limited to Twitter platform (no multi-platform support yet)
 - Single character support (Marvin only)
 - Limited image tweet customization options
+- Basic engagement rules without advanced user profiling
+- Limited historical engagement analysis
 ## Configuration
 - Environment-based configuration via .env file
 - API keys for OpenAI, Anthropic, and Twitter
@@ -80,5 +109,7 @@
 - Video content generation (planned)
 - Voice generation integration (planned)
 - Multi-character support (infrastructure in place)
-- Community interaction capabilities (planned)
-- Advanced analytics and engagement tracking (planned)
+- Enhanced community interaction capabilities (in progress)
+- Advanced analytics and engagement tracking (in progress)
+- Sophisticated user profiling for targeted responses (planned)
+- A/B testing of engagement strategies (planned)

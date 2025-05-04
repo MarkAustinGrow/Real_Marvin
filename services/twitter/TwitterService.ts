@@ -1,6 +1,7 @@
 import { TwitterApi } from 'twitter-api-v2';
 import { config } from '../../config';
 import { PostContent } from '../../types';
+import { EngagementService, EngagementMetric } from '../engagement/EngagementService';
 
 export class TwitterService {
     private client: TwitterApi;
@@ -122,5 +123,152 @@ export class TwitterService {
             ...content,
             text: formattedText
         };
+    }
+    
+    /**
+     * Fetches recent engagements (likes, retweets, replies)
+     * @param tweetId Optional tweet ID to filter by
+     * @returns Array of engagement data
+     */
+    public async fetchRecentEngagements(tweetId?: string): Promise<any[]> {
+        try {
+            console.log('Fetching recent engagements from Twitter');
+            
+            // If a specific tweet ID is provided, get engagements for that tweet
+            if (tweetId) {
+                console.log(`Fetching engagements for tweet ID: ${tweetId}`);
+                
+                // Get likes for the tweet
+                const likersResponse = await this.client.v2.tweetLikedBy(tweetId);
+                const likers = likersResponse.data || [];
+                
+                // Get retweets of the tweet
+                const retweetersResponse = await this.client.v2.tweetRetweetedBy(tweetId);
+                const retweeters = retweetersResponse.data || [];
+                
+                // Get replies to the tweet (this requires a search)
+                const repliesResponse = await this.client.v2.search({
+                    query: `conversation_id:${tweetId}`,
+                    "tweet.fields": ["author_id", "conversation_id", "created_at", "text"]
+                });
+                // Extract the tweets from the response
+                const replies = repliesResponse.tweets || [];
+                
+                // Process and return the combined engagement data
+                return this.processEngagementData(tweetId, likers, retweeters, replies);
+            }
+            
+            // If no tweet ID is provided, get recent mentions
+            console.log('Fetching recent mentions');
+            
+            // Get the authenticated user's ID
+            const me = await this.client.v2.me();
+            
+            // Search for recent mentions
+            const mentionsResponse = await this.client.v2.search({
+                query: `@${me.data.username}`,
+                "tweet.fields": ["author_id", "conversation_id", "created_at", "text"],
+                "user.fields": ["id", "username", "name"]
+            });
+            
+            // Extract the tweets from the response
+            const mentions = mentionsResponse.tweets || [];
+            
+            return mentions.map((mention: any) => ({
+                type: 'mention',
+                tweet_id: mention.id,
+                user_id: mention.author_id,
+                text: mention.text,
+                created_at: mention.created_at
+            }));
+        } catch (error) {
+            console.error('Error fetching engagements:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Processes raw engagement data into a standardized format
+     * @param tweetId The tweet ID
+     * @param likers Users who liked the tweet
+     * @param retweeters Users who retweeted the tweet
+     * @param replies Replies to the tweet
+     * @returns Processed engagement data
+     */
+    private processEngagementData(
+        tweetId: string,
+        likers: any[],
+        retweeters: any[],
+        replies: any[]
+    ): any[] {
+        const engagements = [];
+        
+        // Process likes
+        for (const liker of likers || []) {
+            engagements.push({
+                type: 'like',
+                tweet_id: tweetId,
+                user_id: liker.id,
+                username: liker.username,
+                created_at: new Date().toISOString() // Twitter API doesn't provide this timestamp
+            });
+        }
+        
+        // Process retweets
+        for (const retweeter of retweeters || []) {
+            engagements.push({
+                type: 'repost',
+                tweet_id: tweetId,
+                user_id: retweeter.id,
+                username: retweeter.username,
+                created_at: new Date().toISOString() // Twitter API doesn't provide this timestamp
+            });
+        }
+        
+        // Process replies
+        for (const reply of replies || []) {
+            engagements.push({
+                type: 'reply',
+                tweet_id: tweetId,
+                user_id: reply.author_id,
+                text: reply.text,
+                created_at: reply.created_at
+            });
+        }
+        
+        return engagements;
+    }
+    
+    /**
+     * Monitors and logs recent engagements
+     * @param tweetId Optional tweet ID to monitor
+     */
+    public async monitorEngagements(tweetId?: string): Promise<void> {
+        try {
+            console.log('Monitoring engagements');
+            
+            // Get the engagement service
+            const engagementService = EngagementService.getInstance();
+            
+            // Fetch recent engagements
+            const engagements = await this.fetchRecentEngagements(tweetId);
+            
+            // Log each engagement
+            for (const engagement of engagements) {
+                const engagementMetric: EngagementMetric = {
+                    user_id: engagement.user_id,
+                    username: engagement.username || 'unknown_user',
+                    engagement_type: engagement.type,
+                    tweet_id: engagement.tweet_id,
+                    tweet_content: engagement.text
+                };
+                
+                await engagementService.logEngagement(engagementMetric);
+            }
+            
+            console.log(`Logged ${engagements.length} engagements`);
+        } catch (error) {
+            console.error('Error monitoring engagements:', error);
+        }
     }
 }

@@ -8,7 +8,8 @@
     "build": "tsc",
     "dev": "nodemon --exec ts-node -r tsconfig-paths/register src/index.ts",
     "test": "jest",
-    "test-image-tweet": "ts-node -r tsconfig-paths/register src/test-image-tweet.ts"
+    "test-image-tweet": "ts-node -r tsconfig-paths/register src/test-image-tweet.ts",
+    "test-engagement": "ts-node -r tsconfig-paths/register src/test-engagement.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.21.0",
