@@ -16,22 +16,31 @@ Marvin AI Agent is an autonomous AI character that generates and manages content
 ```
 Real-Marvin/
 ├── src/
-│   ├── index.ts              # Application entry point
-│   └── test-image-tweet.ts   # Test script for image tweets
+│   ├── index.ts                # Application entry point
+│   ├── test-image-tweet.ts     # Test script for image tweets
+│   ├── test-engagement.ts      # Test script for engagement system
+│   ├── engagement-scheduler.ts # Scheduler for engagement monitoring
+│   └── web-server.ts           # Web interface server
 ├── services/
 │   ├── supabase/
-│   │   └── SupabaseService.ts # Database interaction layer
+│   │   └── SupabaseService.ts  # Database interaction layer
 │   ├── content/
 │   │   ├── ContentGenerator.ts # Content generation service
 │   │   └── ImageTweetService.ts # Image tweet service
 │   ├── anthropic/
 │   │   └── AnthropicService.ts # Anthropic Claude integration
-│   └── twitter/
-│       └── TwitterService.ts  # Twitter API integration
+│   ├── twitter/
+│   │   └── TwitterService.ts   # Twitter API integration
+│   ├── engagement/
+│   │   └── EngagementService.ts # User engagement management
+│   └── grok/
+│       └── GrokService.ts      # Grok API integration for responses
 ├── config/
-│   └── index.ts              # Configuration management
+│   └── index.ts                # Configuration management
+├── sql/
+│   └── create_engagement_metrics_table.sql # SQL for engagement table
 └── types/
-    └── index.ts              # TypeScript type definitions
+    └── index.ts                # TypeScript type definitions
 ```
 
 ## Setup Instructions
@@ -55,10 +64,13 @@ TWITTER_API_SECRET=your_twitter_api_secret
 TWITTER_ACCESS_TOKEN=your_twitter_access_token
 TWITTER_ACCESS_TOKEN_SECRET=your_twitter_access_token_secret
 TWITTER_BEARER_TOKEN=your_twitter_bearer_token
+GROK_API_KEY=your_grok_api_key
+GROK_API_ENDPOINT=https://api.x.ai/v1/chat/completions
+ADMIN_PASSWORD=your_web_interface_password
 ```
 
 ### 3. Database Schema
-The Supabase database requires the following table:
+The Supabase database requires the following tables:
 
 #### character_files
 ```sql
@@ -76,6 +88,28 @@ create table character_files (
 -- Add indexes
 create index idx_character_files_agent_name on character_files(agent_name);
 create index idx_character_files_is_active on character_files(is_active);
+```
+
+#### engagement_metrics
+```sql
+create table engagement_metrics (
+    id uuid primary key default uuid_generate_v4(),
+    date date not null,
+    likes integer default 0,
+    comments integer default 0,
+    views integer default 0,
+    platform varchar(50) not null,
+    user_id text,
+    username text,
+    engagement_type text,
+    tweet_id text,
+    tweet_content text,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Add indexes
+create index idx_engagement_metrics_date on engagement_metrics(date);
+create index idx_engagement_metrics_platform on engagement_metrics(platform);
 ```
 
 The `content` field should contain a JSON object with the following structure:
@@ -149,6 +183,26 @@ Key methods:
 - `postTweet(content: PostContent, mediaIds?: string[])`: Posts content to Twitter
 - `uploadMedia(mediaPath: string)`: Uploads media to Twitter
 - `formatContent(content: PostContent)`: Formats content for Twitter
+- `monitorEngagements()`: Monitors and processes user engagements with tweets
+- `fetchEngagements(tweetId: string)`: Fetches likes, reposts, and replies for a specific tweet
+
+### 6. EngagementService
+The `EngagementService` class manages user interactions and automated responses.
+
+Key methods:
+- `getInstance()`: Returns the singleton instance
+- `logEngagement(engagement: EngagementMetric)`: Logs an engagement event to the database
+- `detectRecurringFans(threshold: number, timeframeDays: number)`: Identifies recurring fans based on engagement frequency
+- `generateDailyWrapup()`: Generates a summary of the day's engagements
+- `getRules()`: Gets the current engagement rules
+- `updateRules(newRules: EngagementRule[])`: Updates the engagement rules
+
+### 7. GrokService
+The `GrokService` class integrates with the Grok API to generate humorous responses.
+
+Key methods:
+- `getInstance()`: Returns the singleton instance
+- `generateHumorousReply(context: string)`: Generates a witty response based on context
 
 ## Development Guidelines
 
@@ -202,8 +256,71 @@ The application runs the following scheduled tasks:
 1. Morning Tweet (9:00 AM): Regular text tweet
 2. Afternoon Tweet (1:00 PM): Image tweet with artwork
 3. Evening Tweet (5:00 PM): Regular text tweet
+4. Engagement Monitoring (Every 30 minutes): Checks for new user interactions
+5. Daily Engagement Wrap-up (9:00 PM): Posts a summary of the day's engagements
 
 The image tweets use Anthropic Claude to generate poetic descriptions based on the artwork's original prompt.
+The engagement responses use Grok (with OpenAI fallback) to generate witty replies to user interactions.
+
+## Web Interface
+
+The application includes a web interface for managing and testing various features:
+
+### Accessing the Web Interface
+- URL: http://your-server-ip:3000
+- Authentication: Basic auth (username: admin, password: configured in .env)
+
+### Features
+1. Status Dashboard: Shows when the next scheduled tweet will be posted
+2. Test Tweet Generation: Generate and post test tweets on demand
+3. Engagement Rules Management: Configure how Marvin responds to user interactions
+
+For more details, see `WEB_INTERFACE.md`.
+
+## Engagement System
+
+The engagement system allows Marvin to interact with users who engage with his content on Twitter.
+
+### Overview
+The system:
+1. Monitors user engagements (likes, reposts, replies, follows, mentions)
+2. Identifies recurring fans and engagement patterns
+3. Responds to engagements with Marvin's signature witty, sarcastic personality
+4. Generates daily wrap-ups of engagement activity
+
+### Components
+1. **GrokService**: Generates humorous responses using the Grok API (with OpenAI fallback)
+2. **EngagementService**: Tracks and processes user engagements, applying rules to determine when to respond
+3. **TwitterService Extensions**: Monitors and fetches engagements from Twitter
+4. **EngagementScheduler**: Manages timing of engagement monitoring and daily wrap-ups
+
+### Engagement Rules
+The system uses configurable rules to determine when to respond to engagements:
+
+1. **Rule Types**:
+   - Like Rule: Respond if a user has liked X tweets within Y days
+   - Repost Rule: Respond if a verified user reposts Marvin's content
+   - Follow Rule: Respond if an art-focused user follows Marvin
+   - Reply Rule: Respond to first-time replies from users
+
+2. **Rule Configuration**:
+   - Each rule has a type, condition, action, and priority
+   - Rules can be configured via the web interface
+   - Higher priority rules take precedence when multiple rules match
+
+### Testing
+The system includes test scripts for verifying engagement functionality:
+
+```bash
+# Test with a specific tweet ID
+npm run test-engagement <tweet_id>
+
+# Or use the batch files
+./test-engagement.bat <tweet_id>  # Windows
+./test-engagement.sh <tweet_id>   # Linux/Mac
+```
+
+For more details, see `ENGAGEMENT_SYSTEM.md`.
 
 ## Troubleshooting
 
@@ -222,6 +339,12 @@ The image tweets use Anthropic Claude to generate poetic descriptions based on t
    - Monitor database query performance
    - Check API response times
    - Monitor memory usage
+
+4. Engagement System Issues
+   - Verify Twitter API credentials and rate limits
+   - Check Grok API connectivity
+   - Verify engagement_metrics table structure
+   - Review engagement rules configuration
 
 ## Contributing
 1. Fork the repository

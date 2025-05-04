@@ -18,6 +18,7 @@
 - AI content generation via OpenAI API and Anthropic Claude API
 - Social media integration via Twitter API v2
 - Automated scheduling for regular posting
+- Web interface for administration and configuration
 ## Database Schema
 - character_files table storing character data including:
   - Basic info (name, display name)
@@ -98,12 +99,21 @@
 - Limited image tweet customization options
 - Basic engagement rules without advanced user profiling
 - Limited historical engagement analysis
+## Web Interface
+- Administrative dashboard for monitoring and control
+- Status display showing next scheduled tweets
+- Test tweet generation and posting functionality
+- Engagement rules management interface
+- Secure authentication with configurable credentials
+- Accessible via HTTP on port 3000
+
 ## Configuration
 - Environment-based configuration via .env file
-- API keys for OpenAI, Anthropic, and Twitter
+- API keys for OpenAI, Anthropic, Twitter, and Grok
 - Database connection parameters
 - Character selection parameter
 - Scheduling parameters for tweet timing
+- Web interface authentication credentials
 ## Future Expansion Points
 - WordPress integration for blog posts (planned)
 - Video content generation (planned)
