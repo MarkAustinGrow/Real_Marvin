@@ -27,7 +27,7 @@ class EngagementScheduler {
         this.scheduleEngagementMonitoring(30);
         
         // Schedule daily wrap-up at 9:00 PM
-        this.scheduleDailyWrapup(21, 0);
+        // this.scheduleDailyWrapup(21, 0);  // Commented out to stop the 9 PM Grok posts
         
         console.log('Engagement scheduler started');
     }
