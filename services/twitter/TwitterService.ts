@@ -160,19 +160,35 @@ export class TwitterService {
             const mentionsResponse = await this.client.v2.search({
                 query: `@${me.data.username}`,
                 "tweet.fields": ["author_id", "conversation_id", "created_at", "text"],
-                "user.fields": ["id", "username", "name"]
+                "user.fields": ["id", "username", "name"],
+                "expansions": ["author_id"]
             });
             
             // Extract the tweets from the response
             const mentions = mentionsResponse.tweets || [];
             
-            return mentions.map((mention: any) => ({
-                type: 'mention',
-                tweet_id: mention.id,
-                user_id: mention.author_id,
-                text: mention.text,
-                created_at: mention.created_at
-            }));
+            // Extract the users from the response
+            const users = mentionsResponse.includes?.users || [];
+            
+            // Create a map of user IDs to usernames for quick lookup
+            const userMap = new Map();
+            users.forEach(user => {
+                userMap.set(user.id, user.username);
+            });
+            
+            return mentions.map((mention: any) => {
+                // Look up the username from the user map
+                const username = userMap.get(mention.author_id) || 'unknown_user';
+                
+                return {
+                    type: 'mention',
+                    tweet_id: mention.id,
+                    user_id: mention.author_id,
+                    username: username, // Include the username
+                    text: mention.text,
+                    created_at: mention.created_at
+                };
+            });
         } catch (error) {
             console.error('Error fetching engagements:', error);
             return [];
