@@ -180,7 +180,12 @@ The `AnthropicService` class integrates with the Anthropic Claude API to generat
 
 Key methods:
 - `getInstance()`: Returns the singleton instance
-- `generateTweet(promptText: string)`: Generates a tweet based on a prompt text
+- `generateTweet(promptText: string, isQuestion: boolean = false)`: Generates a tweet based on a prompt text, with special handling for questions
+
+Recent improvements:
+- Enhanced prompt engineering to detect and directly answer questions
+- Added specialized prompts for questions vs. non-questions
+- Implemented a two-part response structure for questions: direct answer followed by poetic elaboration
 
 ### 4. ImageTweetService
 The `ImageTweetService` class handles the generation and posting of tweets that include Marvin's artwork.
@@ -201,16 +206,21 @@ The `TwitterService` class handles interactions with the Twitter API.
 
 Key methods:
 - `getInstance()`: Returns the singleton instance
-- `postTweet(content: PostContent, mediaIds?: string[])`: Posts content to Twitter
+- `postTweet(content: PostContent, mediaIds?: string[], replyToTweetId?: string)`: Posts content to Twitter with optional reply functionality
 - `uploadMedia(mediaPath: string)`: Uploads media to Twitter
 - `formatContent(content: PostContent)`: Formats content for Twitter (no longer adds hashtags)
+- `getOwnUsername()`: Gets the authenticated user's username to prevent self-mention loops
 - `monitorEngagements()`: Monitors and processes user engagements with tweets
-- `fetchRecentEngagements(tweetId?: string)`: Fetches likes, reposts, replies, and mentions with improved username extraction
+- `fetchRecentEngagements(tweetId?: string, sinceId?: string)`: Fetches likes, reposts, replies, and mentions with improved conversation tracking
 
 Recent improvements:
 - Enhanced username extraction for mentions using Twitter API's user data
 - Removed hashtag addition from tweets to keep them cleaner
 - Improved error handling for API responses
+- Added proper threaded reply functionality with replyToTweetId parameter
+- Enhanced conversation tracking with conversation_id and parent_tweet_id
+- Added self-mention loop prevention using getOwnUsername
+- Improved engagement data processing to include conversation context
 
 ### 6. EngagementService
 The `EngagementService` class manages user interactions and automated responses.
@@ -222,13 +232,21 @@ Key methods:
 - `generateDailyWrapup()`: Generates a summary of the day's engagements
 - `getRules()`: Gets the current engagement rules
 - `updateRules(newRules: EngagementRule[])`: Updates the engagement rules
-- `generateClaudeResponse(prompt: string, characterData: any)`: Generates a response using Claude Sonnet primed with character data
+- `generateClaudeResponse(prompt: string, characterData: any, isQuestion: boolean)`: Generates a response using Claude Sonnet primed with character data
+- `isQuestion(text: string)`: Detects if a text contains a question
+- `isTweetProcessed(tweetId: string)`: Checks if a tweet has already been processed
+- `recordTweetProcessing(conversationDetails: any)`: Records a processed tweet in the conversations table
+- `updateLastCheckedAt(tweetId: string)`: Updates the last_checked_at timestamp for a conversation
 
 Recent improvements:
 - Added a new mention rule that always responds to mentions
 - Implemented Claude Sonnet for generating responses to mentions
 - Added character data priming from Supabase to inform Claude's responses
 - Removed hardcoded usernames to prevent spamming real users
+- Added question detection to provide direct answers before poetic responses
+- Implemented conversation tracking to prevent duplicate responses
+- Added self-mention loop prevention to avoid infinite reply chains
+- Enhanced response context with conversation history
 
 ### 7. GrokService
 The `GrokService` class integrates with the Grok API to generate humorous responses.
@@ -297,10 +315,10 @@ The engagement responses use:
 - Claude Sonnet for mentions, primed with Marvin's character data from Supabase
 - Grok (with OpenAI fallback) for other types of engagements
 
-## Planned Improvements
+## Recent Improvements
 
-### Conversations Table
-A new `conversations` table is planned to track processed tweets and prevent duplicate responses:
+### Conversation Tracking
+A new `conversations` table has been implemented to track processed tweets and prevent duplicate responses:
 
 ```sql
 CREATE TABLE conversations (
@@ -314,21 +332,44 @@ CREATE TABLE conversations (
     response_content TEXT,
     is_processed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    responded_at TIMESTAMP WITH TIME ZONE
+    responded_at TIMESTAMP WITH TIME ZONE,
+    last_checked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Indexes for efficient queries
+CREATE INDEX idx_conversations_conversation_id ON conversations(conversation_id);
+CREATE INDEX idx_conversations_user_id ON conversations(user_id);
+CREATE INDEX idx_conversations_last_checked_at ON conversations(last_checked_at);
 ```
 
-### Threaded Replies
-The system currently creates new tweets that mention users rather than replying to the original tweet. Planned improvements include:
-- Modifying the TwitterService to support proper threaded replies
-- Using the tweet ID to create direct replies to the original tweet
-- Including conversation context in the prompt to Claude for more relevant responses
+The `last_checked_at` field allows the system to track when a conversation was last checked for new replies, enabling more efficient conversation monitoring.
 
-### Duplicate Response Prevention
-To prevent responding to the same mentions multiple times:
-- Use the conversations table to track which tweets have been processed
-- Check this table before responding to any mention
-- Use Twitter API's "since_id" parameter to only fetch new mentions
+### Threaded Replies
+The system now supports proper threaded replies instead of creating new tweets that mention users:
+- The TwitterService has been updated to support the `replyToTweetId` parameter
+- Replies are now posted as direct replies to the original tweet
+- Conversation context is included in the prompt to Claude for more relevant responses
+
+### Question Detection and Direct Answers
+The system now detects questions in user messages and provides direct answers:
+- Added question detection using question marks and common question words/phrases
+- Enhanced Claude prompting to first provide a direct answer, then transition to poetic style
+- Improved user experience by ensuring questions are actually answered
+
+### Self-Mention Loop Prevention
+The system now prevents infinite self-mention loops:
+- Added username detection to identify mentions from the bot itself
+- Implemented filtering to ignore self-mentions
+- Prevents the bot from responding to its own tweets that mention itself
+
+## Planned Improvements
+
+### Enhanced Conversation Analytics
+Future improvements to the conversation system could include:
+- Advanced analytics on conversation patterns
+- User preference tracking based on engagement
+- Personalized response generation based on user history
+- Conversation topic clustering and trend analysis
 
 ## Web Interface
 
