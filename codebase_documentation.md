@@ -203,9 +203,14 @@ Key methods:
 - `getInstance()`: Returns the singleton instance
 - `postTweet(content: PostContent, mediaIds?: string[])`: Posts content to Twitter
 - `uploadMedia(mediaPath: string)`: Uploads media to Twitter
-- `formatContent(content: PostContent)`: Formats content for Twitter
+- `formatContent(content: PostContent)`: Formats content for Twitter (no longer adds hashtags)
 - `monitorEngagements()`: Monitors and processes user engagements with tweets
-- `fetchEngagements(tweetId: string)`: Fetches likes, reposts, and replies for a specific tweet
+- `fetchRecentEngagements(tweetId?: string)`: Fetches likes, reposts, replies, and mentions with improved username extraction
+
+Recent improvements:
+- Enhanced username extraction for mentions using Twitter API's user data
+- Removed hashtag addition from tweets to keep them cleaner
+- Improved error handling for API responses
 
 ### 6. EngagementService
 The `EngagementService` class manages user interactions and automated responses.
@@ -217,6 +222,13 @@ Key methods:
 - `generateDailyWrapup()`: Generates a summary of the day's engagements
 - `getRules()`: Gets the current engagement rules
 - `updateRules(newRules: EngagementRule[])`: Updates the engagement rules
+- `generateClaudeResponse(prompt: string, characterData: any)`: Generates a response using Claude Sonnet primed with character data
+
+Recent improvements:
+- Added a new mention rule that always responds to mentions
+- Implemented Claude Sonnet for generating responses to mentions
+- Added character data priming from Supabase to inform Claude's responses
+- Removed hardcoded usernames to prevent spamming real users
 
 ### 7. GrokService
 The `GrokService` class integrates with the Grok API to generate humorous responses.
@@ -274,14 +286,49 @@ For image tweet functionality specifically, see `Image_Tweets.md` for implementa
 ## Scheduled Tasks
 The application runs the following scheduled tasks:
 
-1. Morning Tweet (9:00 AM): Regular text tweet
+1. ~~Morning Tweet (9:00 AM): Regular text tweet~~ (Disabled)
 2. Afternoon Tweet (1:00 PM): Image tweet with artwork
-3. Evening Tweet (5:00 PM): Regular text tweet
-4. Engagement Monitoring (Every 30 minutes): Checks for new user interactions
-5. Daily Engagement Wrap-up (9:00 PM): Posts a summary of the day's engagements
+3. ~~Evening Tweet (5:00 PM): Regular text tweet~~ (Disabled)
+4. Engagement Monitoring (Every 10 minutes): Checks for new user interactions
+5. ~~Daily Engagement Wrap-up (9:00 PM): Posts a summary of the day's engagements~~ (Disabled)
 
 The image tweets use Anthropic Claude to generate poetic descriptions based on the artwork's original prompt.
-The engagement responses use Grok (with OpenAI fallback) to generate witty replies to user interactions.
+The engagement responses use:
+- Claude Sonnet for mentions, primed with Marvin's character data from Supabase
+- Grok (with OpenAI fallback) for other types of engagements
+
+## Planned Improvements
+
+### Conversations Table
+A new `conversations` table is planned to track processed tweets and prevent duplicate responses:
+
+```sql
+CREATE TABLE conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tweet_id TEXT NOT NULL UNIQUE,
+    conversation_id TEXT,
+    user_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    tweet_content TEXT,
+    response_tweet_id TEXT,
+    response_content TEXT,
+    is_processed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    responded_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+### Threaded Replies
+The system currently creates new tweets that mention users rather than replying to the original tweet. Planned improvements include:
+- Modifying the TwitterService to support proper threaded replies
+- Using the tweet ID to create direct replies to the original tweet
+- Including conversation context in the prompt to Claude for more relevant responses
+
+### Duplicate Response Prevention
+To prevent responding to the same mentions multiple times:
+- Use the conversations table to track which tweets have been processed
+- Check this table before responding to any mention
+- Use Twitter API's "since_id" parameter to only fetch new mentions
 
 ## Web Interface
 
@@ -323,6 +370,7 @@ The system uses configurable rules to determine when to respond to engagements:
    - Repost Rule: Respond if a verified user reposts Marvin's content
    - Follow Rule: Respond if an art-focused user follows Marvin
    - Reply Rule: Respond to first-time replies from users
+   - Mention Rule: Always respond to mentions (highest priority)
 
 2. **Rule Configuration**:
    - Each rule has a type, condition, action, and priority
