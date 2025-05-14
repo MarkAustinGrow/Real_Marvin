@@ -87,58 +87,32 @@ function getMillisecondsUntilTime(hour: number, minute: number = 0): number {
     return targetTime.getTime() - now.getTime();
 }
 
-// Function to schedule the next tweet
-function scheduleNextTweet(morningHour: number = 9, afternoonHour: number = 13, eveningHour: number = 17) {
-    const now = new Date();
-    const currentHour = now.getHours();
+// Function to schedule the next tweet (only 1:00 PM image tweet)
+function scheduleNextTweet() {
+    const afternoonHour = 13; // 1:00 PM
     
-    let nextTweetHour: number;
-    let isImageTweet: boolean = false;
-    
-    // Determine which tweet to schedule next
-    if (currentHour < morningHour) {
-        // Before morning tweet time, schedule for morning
-        nextTweetHour = morningHour;
-    } else if (currentHour < afternoonHour) {
-        // Between morning and afternoon tweet times, schedule for afternoon (image tweet)
-        nextTweetHour = afternoonHour;
-        isImageTweet = true;
-    } else if (currentHour < eveningHour) {
-        // Between afternoon and evening tweet times, schedule for evening
-        nextTweetHour = eveningHour;
-    } else {
-        // After evening tweet time, schedule for tomorrow morning
-        nextTweetHour = morningHour;
-    }
-    
-    const msUntilNextTweet = getMillisecondsUntilTime(nextTweetHour);
+    const msUntilNextTweet = getMillisecondsUntilTime(afternoonHour);
     const hoursUntilNextTweet = Math.floor(msUntilNextTweet / (1000 * 60 * 60));
     const minutesUntilNextTweet = Math.floor((msUntilNextTweet % (1000 * 60 * 60)) / (1000 * 60));
     
-    console.log(`Next tweet scheduled in ${hoursUntilNextTweet} hours and ${minutesUntilNextTweet} minutes at ${nextTweetHour}:00`);
-    console.log(`Tweet type: ${isImageTweet ? 'Image Tweet' : 'Regular Tweet'}`);
+    console.log(`Next image tweet scheduled in ${hoursUntilNextTweet} hours and ${minutesUntilNextTweet} minutes at ${afternoonHour}:00`);
     
     return setTimeout(async () => {
-        console.log(`It's time to post a scheduled tweet!`);
+        console.log(`It's time to post a scheduled image tweet!`);
         
-        if (isImageTweet) {
-            // Post an image tweet
-            const imageTweetService = ImageTweetService.getInstance();
-            await imageTweetService.generateAndPostImageTweet();
-        } else {
-            // Post a regular tweet
-            await generateAndPostTweet();
-        }
+        // Post an image tweet
+        const imageTweetService = ImageTweetService.getInstance();
+        await imageTweetService.generateAndPostImageTweet();
         
         // Schedule the next tweet after this one completes
-        scheduleNextTweet(morningHour, afternoonHour, eveningHour);
+        scheduleNextTweet();
     }, msUntilNextTweet);
 }
 
 // Main function to start the application
 async function main() {
     console.log('Starting Marvin AI Agent with scheduled posting...');
-    console.log('Tweets will be posted three times daily at 9:00 AM, 1:00 PM (with artwork), and 5:00 PM');
+    console.log('Image tweets will be posted daily at 1:00 PM');
     
     // Start the web server
     startWebServer();
@@ -149,7 +123,7 @@ async function main() {
     console.log('Engagement monitoring and response system activated');
     
     // Schedule the first tweet
-    scheduleNextTweet(9, 13, 17);
+    scheduleNextTweet();
     
     // Keep the process running
     process.on('SIGINT', () => {
