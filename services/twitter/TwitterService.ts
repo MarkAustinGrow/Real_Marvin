@@ -108,16 +108,8 @@ export class TwitterService {
             formattedText = formattedText.substring(0, maxLength - 3) + '...';
         }
 
-        // Add hashtags if they're not already present
-        if (content.hashtags && content.hashtags.length > 0) {
-            const hashtagString = content.hashtags
-                .map(tag => `#${tag.replace('#', '')}`)
-                .join(' ');
-            
-            if (!formattedText.includes(hashtagString)) {
-                formattedText += `\n\n${hashtagString}`;
-            }
-        }
+        // Hashtags are no longer added to tweets
+        // This was removed to keep tweets cleaner
 
         return {
             ...content,
