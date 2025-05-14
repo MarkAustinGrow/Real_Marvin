@@ -126,6 +126,21 @@ export class TwitterService {
     }
     
     /**
+     * Gets the authenticated user's username
+     * @returns The username of the authenticated user
+     */
+    public async getOwnUsername(): Promise<string> {
+        try {
+            const me = await this.client.v2.me();
+            console.log(`Own username: ${me.data.username}`);
+            return me.data.username;
+        } catch (error) {
+            console.error('Error getting own username:', error);
+            return 'Yona_AI_Music'; // Fallback to hardcoded username
+        }
+    }
+    
+    /**
      * Fetches recent engagements (likes, reposts, replies)
      * @param tweetId Optional tweet ID to filter by
      * @param sinceId Optional tweet ID to fetch engagements since

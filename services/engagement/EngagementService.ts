@@ -176,7 +176,16 @@ export class EngagementService {
      */
     private async shouldRespond(engagement: EngagementMetric): Promise<boolean> {
         try {
-            // Special case for mentions - always respond
+            // Get our own username to prevent self-mention loops
+            const ownUsername = await this.twitterService.getOwnUsername();
+            
+            // Ignore mentions from ourselves to prevent loops
+            if (engagement.username.toLowerCase() === ownUsername.toLowerCase()) {
+                console.log(`Ignoring self-mention from ${engagement.username}`);
+                return false;
+            }
+            
+            // Special case for mentions - always respond to mentions from others
             if (engagement.engagement_type === 'mention') {
                 return true;
             }
