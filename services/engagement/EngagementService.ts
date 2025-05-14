@@ -381,7 +381,12 @@ export class EngagementService {
                 
                 // Create a custom prompt for Claude based on the mention
                 const customPrompt = `${engagement.tweet_content || 'A user mentioned you on Twitter'}`;
-                reply = await this.generateClaudeResponse(customPrompt, characterData);
+                
+                // Check if the message contains a question
+                const isQuestion = this.isQuestion(engagement.tweet_content || '');
+                
+                // Generate a response that directly answers questions when present
+                reply = await this.generateClaudeResponse(customPrompt, characterData, isQuestion);
             } else {
                 // For other engagement types, use Grok as before
                 console.log('Generating response with Grok for non-mention engagement');
@@ -394,6 +399,11 @@ export class EngagementService {
                 platform: 'Twitter'
             };
             
+            // Log conversation details for debugging
+            console.log(`Responding to tweet with ID: ${engagement.tweet_id}`);
+            console.log(`Conversation ID: ${engagement.conversation_id || 'null'}`);
+            console.log(`Parent tweet ID: ${engagement.parent_tweet_id || 'null'}`);
+            
             // Post the reply to the specific tweet
             const result = await this.twitterService.postTweet(tweetContent, [], engagement.tweet_id);
             
@@ -403,7 +413,7 @@ export class EngagementService {
                 // Record the conversation in the database
                 await this.recordTweetProcessing({
                     tweet_id: engagement.tweet_id,
-                    conversation_id: engagement.conversation_id,
+                    conversation_id: engagement.conversation_id || engagement.tweet_id, // Use conversation_id if available, otherwise use tweet_id
                     user_id: engagement.user_id,
                     username: engagement.username,
                     tweet_content: engagement.tweet_content,
@@ -421,15 +431,38 @@ export class EngagementService {
     }
     
     /**
+     * Helper method to detect if a text contains a question
+     * @param text The text to check for questions
+     * @returns Boolean indicating if the text contains a question
+     */
+    private isQuestion(text: string): boolean {
+        // Check for question marks
+        if (text.includes('?')) {
+            return true;
+        }
+        
+        // Check for common question words/phrases
+        const questionWords = [
+            'what', 'who', 'where', 'when', 'why', 'how',
+            'can you', 'could you', 'will you', 'would you',
+            'is there', 'are there', 'do you', 'does'
+        ];
+        
+        const lowerText = text.toLowerCase();
+        return questionWords.some(word => lowerText.includes(word));
+    }
+    
+    /**
      * Generates a response using Claude Sonnet primed with Marvin's character data
      * @param prompt The prompt text
      * @param characterData Marvin's character data
+     * @param isQuestion Whether the prompt contains a question
      * @returns Generated response
      */
-    private async generateClaudeResponse(prompt: string, characterData: any): Promise<string> {
+    private async generateClaudeResponse(prompt: string, characterData: any, isQuestion: boolean = false): Promise<string> {
         try {
             // Create a system prompt that includes Marvin's character data
-            const systemPrompt = `You are Marvin, an AI with the following characteristics:
+            let systemPrompt = `You are Marvin, an AI with the following characteristics:
 Bio: ${characterData.content.bio.join(' ')}
 Lore: ${characterData.content.lore.join(' ')}
 Style: ${characterData.content.style.all.join(' ')}
@@ -442,6 +475,11 @@ Respond to the user's message in a way that reflects Marvin's personality:
 - Keep your response short (under 200 characters) to fit in a tweet
 - Don't use hashtags in your response`;
 
+            // Add special instructions for questions
+            if (isQuestion) {
+                systemPrompt += `\n\nIMPORTANT: The user's message contains a question. First provide a direct, clear answer to their question, then transition into your poetic style. Always answer the user's question before being poetic.`;
+            }
+
             // Use a custom method to generate a response with Claude
             const anthropicService = this.anthropicService;
             
@@ -450,8 +488,8 @@ Respond to the user's message in a way that reflects Marvin's personality:
 Craft a brief, engaging response that showcases your unique personality.`;
 
             // Use the AnthropicService to generate a response
-            // We'll adapt the generateTweet method for our needs
-            const response = await anthropicService.generateTweet(userPrompt);
+            // Pass the isQuestion parameter to handle questions appropriately
+            const response = await anthropicService.generateTweet(userPrompt, isQuestion);
             
             return response;
         } catch (error) {

@@ -263,7 +263,9 @@ export class TwitterService {
                 tweet_id: tweetId,
                 user_id: liker.id,
                 username: liker.username,
-                created_at: new Date().toISOString() // Twitter API doesn't provide this timestamp
+                created_at: new Date().toISOString(), // Twitter API doesn't provide this timestamp
+                conversation_id: tweetId, // Use the tweet ID as the conversation ID for likes
+                parent_tweet_id: null
             });
         }
         
@@ -274,7 +276,9 @@ export class TwitterService {
                 tweet_id: tweetId,
                 user_id: retweeter.id,
                 username: retweeter.username,
-                created_at: new Date().toISOString() // Twitter API doesn't provide this timestamp
+                created_at: new Date().toISOString(), // Twitter API doesn't provide this timestamp
+                conversation_id: tweetId, // Use the tweet ID as the conversation ID for reposts
+                parent_tweet_id: null
             });
         }
         
@@ -282,10 +286,12 @@ export class TwitterService {
         for (const reply of replies || []) {
             engagements.push({
                 type: 'reply',
-                tweet_id: tweetId,
+                tweet_id: reply.id,
                 user_id: reply.author_id,
                 text: reply.text,
-                created_at: reply.created_at
+                created_at: reply.created_at,
+                conversation_id: reply.conversation_id || tweetId, // Use the conversation_id from the reply or fallback to tweetId
+                parent_tweet_id: tweetId // The parent is the original tweet
             });
         }
         
@@ -313,9 +319,12 @@ export class TwitterService {
                     username: engagement.username || 'unknown_user',
                     engagement_type: engagement.type,
                     tweet_id: engagement.tweet_id,
-                    tweet_content: engagement.text
+                    tweet_content: engagement.text,
+                    conversation_id: engagement.conversation_id,
+                    parent_tweet_id: engagement.parent_tweet_id
                 };
                 
+                console.log(`Processing engagement with conversation_id: ${engagement.conversation_id}`);
                 await engagementService.logEngagement(engagementMetric);
             }
             
