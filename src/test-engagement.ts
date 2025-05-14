@@ -1,10 +1,11 @@
 import { TwitterService } from '../services/twitter/TwitterService';
-import { EngagementService } from '../services/engagement/EngagementService';
+import { EngagementService, EngagementMetric } from '../services/engagement/EngagementService';
 import { GrokService } from '../services/grok/GrokService';
 
 /**
  * Test script for the engagement system
  * This script demonstrates the engagement monitoring and response features
+ * with conversation tracking
  */
 async function testEngagement() {
     try {
@@ -30,7 +31,29 @@ async function testEngagement() {
         }
         
         console.log(`Monitoring engagements for tweet ID: ${tweetId}`);
-        await twitterService.monitorEngagements(tweetId);
+        
+        // Fetch engagements with the updated method that includes conversation_id
+        const engagements = await twitterService.fetchRecentEngagements(tweetId);
+        console.log(`Found ${engagements.length} engagements`);
+        
+        // Process each engagement with the updated EngagementService
+        for (const engagement of engagements) {
+            console.log(`Processing engagement: ${JSON.stringify(engagement, null, 2)}`);
+            
+            // Create an engagement metric with conversation_id
+            const engagementMetric: EngagementMetric = {
+                user_id: engagement.user_id,
+                username: engagement.username || 'unknown_user',
+                engagement_type: engagement.type,
+                tweet_id: engagement.tweet_id,
+                tweet_content: engagement.text,
+                conversation_id: engagement.conversation_id,
+                parent_tweet_id: engagement.parent_tweet_id
+            };
+            
+            // Log the engagement
+            await engagementService.logEngagement(engagementMetric);
+        }
         
         // Test 2: Generate a humorous reply with Grok
         console.log('\n--- Test 2: Generate a humorous reply with Grok ---');
@@ -54,19 +77,20 @@ async function testEngagement() {
         
         console.log('Daily wrap-up:', wrapup);
         
-        // Test 5: Simulate an engagement and response
-        console.log('\n--- Test 5: Simulate an engagement and response ---');
+        // Test 5: Simulate an engagement and response with conversation tracking
+        console.log('\n--- Test 5: Simulate an engagement and response with conversation tracking ---');
         
-        // Create a mock engagement
-        const mockEngagement = {
+        // Create a mock engagement with conversation_id
+        const mockEngagement: EngagementMetric = {
             user_id: '12345',
             username: 'test_user',
-            engagement_type: 'like' as const,
-            tweet_id: tweetId,
-            tweet_content: 'This is a test tweet for engagement simulation'
+            engagement_type: 'mention' as const,
+            tweet_id: `test_${Date.now()}`, // Generate a unique ID
+            tweet_content: 'This is a test mention for conversation tracking',
+            conversation_id: `conv_${Date.now()}` // Generate a unique conversation ID
         };
         
-        console.log('Logging mock engagement:', mockEngagement);
+        console.log('Logging mock engagement with conversation tracking:', mockEngagement);
         await engagementService.logEngagement(mockEngagement);
         
         console.log('Engagement test completed successfully');

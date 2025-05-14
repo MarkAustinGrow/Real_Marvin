@@ -24,12 +24,13 @@ export class TwitterService {
     }
 
     /**
-     * Posts content to Twitter with optional media
+     * Posts content to Twitter with optional media and reply functionality
      * @param content The content to post
      * @param mediaIds Optional array of media IDs to attach
-     * @returns Object containing success status and any error information
+     * @param replyToTweetId Optional tweet ID to reply to
+     * @returns Object containing success status, tweet ID, and any error information
      */
-    public async postTweet(content: PostContent, mediaIds?: string[]): Promise<{ success: boolean; error?: any; message?: string }> {
+    public async postTweet(content: PostContent, mediaIds?: string[], replyToTweetId?: string): Promise<{ success: boolean; error?: any; message?: string; tweetId?: string }> {
         try {
             const tweetOptions: any = {
                 text: content.text,
@@ -39,10 +40,17 @@ export class TwitterService {
                 tweetOptions.media = { media_ids: mediaIds };
             }
 
+            // Add reply parameter if replyToTweetId is provided
+            if (replyToTweetId) {
+                tweetOptions.reply = { in_reply_to_tweet_id: replyToTweetId };
+                console.log(`Creating a reply to tweet ID: ${replyToTweetId}`);
+            }
+
             const result = await this.client.v2.tweet(tweetOptions);
             return { 
                 success: true, 
-                message: `Tweet posted successfully with ID: ${result.data.id}` 
+                message: `Tweet posted successfully with ID: ${result.data.id}`,
+                tweetId: result.data.id
             };
         } catch (error: any) {
             console.error('Error posting tweet:', error);
@@ -118,11 +126,12 @@ export class TwitterService {
     }
     
     /**
-     * Fetches recent engagements (likes, retweets, replies)
+     * Fetches recent engagements (likes, reposts, replies)
      * @param tweetId Optional tweet ID to filter by
+     * @param sinceId Optional tweet ID to fetch engagements since
      * @returns Array of engagement data
      */
-    public async fetchRecentEngagements(tweetId?: string): Promise<any[]> {
+    public async fetchRecentEngagements(tweetId?: string, sinceId?: string): Promise<any[]> {
         try {
             console.log('Fetching recent engagements from Twitter');
             
@@ -141,7 +150,8 @@ export class TwitterService {
                 // Get replies to the tweet (this requires a search)
                 const repliesResponse = await this.client.v2.search({
                     query: `conversation_id:${tweetId}`,
-                    "tweet.fields": ["author_id", "conversation_id", "created_at", "text"]
+                    "tweet.fields": ["author_id", "conversation_id", "created_at", "text", "referenced_tweets"],
+                    "expansions": ["referenced_tweets.id", "in_reply_to_user_id"]
                 });
                 // Extract the tweets from the response
                 const replies = repliesResponse.tweets || [];
@@ -156,13 +166,22 @@ export class TwitterService {
             // Get the authenticated user's ID
             const me = await this.client.v2.me();
             
-            // Search for recent mentions
-            const mentionsResponse = await this.client.v2.search({
+            // Search parameters
+            const searchParams: any = {
                 query: `@${me.data.username}`,
-                "tweet.fields": ["author_id", "conversation_id", "created_at", "text"],
+                "tweet.fields": ["author_id", "conversation_id", "created_at", "text", "referenced_tweets"],
                 "user.fields": ["id", "username", "name"],
-                "expansions": ["author_id"]
-            });
+                "expansions": ["author_id", "referenced_tweets.id", "in_reply_to_user_id"]
+            };
+            
+            // Add since_id if provided
+            if (sinceId) {
+                searchParams.since_id = sinceId;
+                console.log(`Fetching mentions since tweet ID: ${sinceId}`);
+            }
+            
+            // Search for recent mentions
+            const mentionsResponse = await this.client.v2.search(searchParams);
             
             // Extract the tweets from the response
             const mentions = mentionsResponse.tweets || [];
@@ -180,13 +199,24 @@ export class TwitterService {
                 // Look up the username from the user map
                 const username = userMap.get(mention.author_id) || 'unknown_user';
                 
+                // Determine if this is a reply and get the parent tweet ID
+                let parentTweetId = null;
+                if (mention.referenced_tweets && mention.referenced_tweets.length > 0) {
+                    const replyTo = mention.referenced_tweets.find((ref: any) => ref.type === 'replied_to');
+                    if (replyTo) {
+                        parentTweetId = replyTo.id;
+                    }
+                }
+                
                 return {
                     type: 'mention',
                     tweet_id: mention.id,
                     user_id: mention.author_id,
                     username: username, // Include the username
                     text: mention.text,
-                    created_at: mention.created_at
+                    created_at: mention.created_at,
+                    conversation_id: mention.conversation_id,
+                    parent_tweet_id: parentTweetId
                 };
             });
         } catch (error) {
