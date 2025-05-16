@@ -8,16 +8,17 @@
 - Automatic hashtag generation and formatting
 - Twitter integration for automated posting
 - Scheduled posting three times daily (morning, afternoon, evening)
+- Blog post scheduling and automatic posting to Twitter
 - User engagement tracking and automated responses to interactions
 - Daily engagement wrap-ups highlighting fan interactions
 ## Technical Architecture
 - Node.js backend with TypeScript for type safety
-- Singleton pattern for service classes (SupabaseService, TwitterService, ContentGenerator, OpenAIService, AnthropicService, ImageTweetService, GrokService, EngagementService)
+- Singleton pattern for service classes (SupabaseService, TwitterService, ContentGenerator, OpenAIService, AnthropicService, ImageTweetService, GrokService, EngagementService, BlogPostScheduler)
 - Modular design with separation of concerns between services
 - Database integration via Supabase (PostgreSQL)
 - AI content generation via OpenAI API and Anthropic Claude API
 - Social media integration via Twitter API v2
-- Automated scheduling for regular posting
+- Automated scheduling for regular posting and blog content
 - Web interface for administration and configuration
 ## Database Schema
 - character_files table storing character data including:
@@ -35,6 +36,15 @@
   - Engagement type (like, repost, reply, follow, mention)
   - Tweet information (ID, content)
   - Timestamp data
+- blog_posts table storing blog content including:
+  - Title and markdown content
+  - Status (draft, ready_to_tweet, posted)
+  - Post URL after publishing
+  - Creation and update timestamps
+- tweet_drafts table storing tweet records for blog posts including:
+  - Reference to blog post ID
+  - Tweet content and post URL
+  - Status and metadata (for thread tracking)
 ## Components
 ### SupabaseService:
 - Database connection and query management
@@ -88,6 +98,14 @@
 - Scheduled engagement monitoring (every 30 minutes)
 - Daily wrap-up scheduling (9:00 PM)
 - Automated engagement response timing
+
+### BlogPostScheduler:
+- Scheduled blog post checking and posting (configurable days and times)
+- Automatic conversion of blog content to Twitter posts
+- Support for both single tweets and thread creation for longer content
+- Markdown to plain text conversion for Twitter compatibility
+- Queue management for failed posts with exponential backoff retry logic
+- Detailed logging and status tracking in database
 ## Error Handling
 - Comprehensive error handling throughout the application
 - Specific error messages for different failure scenarios
@@ -113,9 +131,9 @@
 - Database connection parameters
 - Character selection parameter
 - Scheduling parameters for tweet timing
+- Blog post scheduler configuration (enabled/disabled, days, time, dry run mode)
 - Web interface authentication credentials
 ## Future Expansion Points
-- WordPress integration for blog posts (planned)
 - Video content generation (planned)
 - Voice generation integration (planned)
 - Multi-character support (infrastructure in place)
@@ -123,3 +141,4 @@
 - Advanced analytics and engagement tracking (in progress)
 - Sophisticated user profiling for targeted responses (planned)
 - A/B testing of engagement strategies (planned)
+- X Articles API integration when available (planned)
