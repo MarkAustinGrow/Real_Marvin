@@ -17,11 +17,7 @@ ssh root@172.236.12.41 << 'EOF'
   echo "Pulling the latest changes from the repository..."
   git pull
 
-  # Install new dependencies
-  echo "Installing new dependencies..."
-  npm install
-
-  # Rebuild and restart the Docker container
+  # Rebuild and restart the Docker container (this will install dependencies inside the container)
   echo "Rebuilding and restarting the Docker container..."
   docker-compose up -d --build
 

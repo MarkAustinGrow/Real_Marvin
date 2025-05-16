@@ -18,6 +18,9 @@ RUN npm run build
 RUN mkdir -p dist/src/public
 RUN cp -r src/public/* dist/src/public/
 
+# Install marked package for markdown processing (for blog post scheduler)
+RUN npm install marked
+
 # Set environment variables (these can be overridden at runtime)
 ENV NODE_ENV=production
 
