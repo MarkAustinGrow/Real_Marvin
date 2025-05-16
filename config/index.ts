@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { TwitterConfig } from '../types';
+import { TwitterConfig, BlogPostSchedulerConfig } from '../types';
 
 dotenv.config();
 
@@ -24,7 +24,19 @@ export const config = {
     grok: {
         apiKey: process.env.GROK_API_KEY || '',
         apiEndpoint: process.env.GROK_API_ENDPOINT || 'https://api.grok.x/v1/chat/completions',
-    }
+    },
+    blogPostScheduler: {
+        enabled: process.env.BLOG_POST_SCHEDULER_ENABLED === 'true',
+        scheduleDays: [1, 4], // Monday and Thursday
+        scheduleHour: parseInt(process.env.BLOG_POST_SCHEDULER_HOUR || '10', 10),
+        scheduleMinute: parseInt(process.env.BLOG_POST_SCHEDULER_MINUTE || '0', 10),
+        useXArticles: false, // Set to true when X Articles API becomes available
+        dryRun: process.env.BLOG_POST_SCHEDULER_DRY_RUN === 'true',
+        updateStatusInDryRun: false,
+        notifications: {
+            enabled: false
+        }
+    } as BlogPostSchedulerConfig
 };
 
 // Validate required environment variables

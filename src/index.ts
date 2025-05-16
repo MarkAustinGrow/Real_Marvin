@@ -3,6 +3,7 @@ import { ContentGenerator } from '../services/content/ContentGenerator';
 import { ImageTweetService } from '../services/content/ImageTweetService';
 import { startWebServer } from './web-server';
 import { engagementScheduler } from './engagement-scheduler';
+import { config } from '../config';
 
 // Categories for tweet generation
 const categories = [
@@ -121,6 +122,13 @@ async function main() {
     // Start the engagement scheduler
     engagementScheduler.start();
     console.log('Engagement monitoring and response system activated');
+    
+    // Start the blog post scheduler if enabled
+    if (config.blogPostScheduler?.enabled) {
+        const { blogPostScheduler } = require('./blog-post-scheduler');
+        blogPostScheduler.start();
+        console.log('Blog post scheduler activated');
+    }
     
     // Schedule the first tweet
     scheduleNextTweet();

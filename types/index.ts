@@ -19,4 +19,17 @@ export interface SocialMediaPost {
     mediaPaths?: string[];
     scheduledTime?: Date;
     platforms: string[];
-} 
+}
+
+export interface BlogPostSchedulerConfig {
+    enabled: boolean;
+    scheduleDays: number[]; // Days of the week (0-6, where 0 is Sunday)
+    scheduleHour: number;
+    scheduleMinute: number;
+    useXArticles: boolean;
+    dryRun: boolean;
+    updateStatusInDryRun: boolean;
+    notifications: {
+        enabled: boolean;
+    };
+}
