@@ -261,7 +261,7 @@ export class ImageTweetService {
     ): Promise<void> {
         try {
             await this.memoryService.addMemory({
-                type: 'image_tweet',
+                type: 'tweet',  // Changed from 'image_tweet' to 'tweet' which is a valid memory type
                 content: content.text,
                 source: imageUrl,
                 tags: [...(content.hashtags || []), 'image', 'art'],

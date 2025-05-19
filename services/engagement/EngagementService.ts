@@ -166,7 +166,7 @@ export class EngagementService {
     private async storeEngagementAsMemory(engagement: EngagementMetric): Promise<void> {
         try {
             await this.memoryService.addMemory({
-                type: 'engagement',
+                type: 'thought',  // Changed from 'engagement' to 'thought' which is a valid memory type
                 content: engagement.tweet_content || `User @${engagement.username} ${this.getEngagementVerb(engagement.engagement_type)} Marvin's tweet`,
                 source: 'twitter',
                 tags: [engagement.engagement_type, 'twitter', 'user_interaction'],
