@@ -50,7 +50,7 @@ export class MemoryService {
       }
       
       // Make GET request with query parameters
-      const res = await axios.get(`${MEMORY_API_BASE}/memories/search`, { params });
+      const res = await axios.get(`${MEMORY_API_BASE}/api/memories/search`, { params });
       return res.data;
     } catch (error) {
       console.error('Error searching memories:', error);
@@ -84,7 +84,7 @@ export class MemoryService {
         Object.assign(memoryData, { metadata: memory.metadata });
       }
       
-      const response = await axios.post(`${MEMORY_API_BASE}/memories/`, memoryData);
+      const response = await axios.post(`${MEMORY_API_BASE}/api/memories/`, memoryData);
       return response.data;
     } catch (error) {
       console.error('Error adding memory:', error);
@@ -99,7 +99,7 @@ export class MemoryService {
    */
   public async getMemory(id: string) {
     try {
-      const res = await axios.get(`${MEMORY_API_BASE}/memories/${id}`);
+      const res = await axios.get(`${MEMORY_API_BASE}/api/memories/${id}`);
       return res.data;
     } catch (error) {
       console.error(`Error getting memory with ID ${id}:`, error);
@@ -125,7 +125,7 @@ export class MemoryService {
         params.tags = tags.join(',');
       }
       
-      const res = await axios.get(`${MEMORY_API_BASE}/memories/`, { params });
+      const res = await axios.get(`${MEMORY_API_BASE}/api/memories/`, { params });
       return res.data;
     } catch (error) {
       console.error('Error listing memories:', error);
@@ -140,7 +140,7 @@ export class MemoryService {
    */
   public async deleteMemory(id: string) {
     try {
-      const res = await axios.delete(`${MEMORY_API_BASE}/memories/${id}`);
+      const res = await axios.delete(`${MEMORY_API_BASE}/api/memories/${id}`);
       return res.data;
     } catch (error) {
       console.error(`Error deleting memory with ID ${id}:`, error);
@@ -156,7 +156,7 @@ export class MemoryService {
    */
   public async conductResearch(query: string, autoApprove: boolean = false) {
     try {
-      const response = await axios.post(`${MEMORY_API_BASE}/research/`, {
+      const response = await axios.post(`${MEMORY_API_BASE}/api/research/`, {
         query,
         auto_approve: autoApprove
       });
