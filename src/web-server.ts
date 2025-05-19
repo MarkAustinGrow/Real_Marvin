@@ -51,6 +51,14 @@ export function startWebServer() {
       // Generate the blog post
       const blogPost = await contentGenerator.generateBlogPost(theme, useMemory);
       
+      // Debug log to see what's coming from the generator
+      console.log('Blog post to save:', {
+        title: blogPost.title,
+        excerptLength: blogPost.excerpt ? blogPost.excerpt.length : 0,
+        excerpt: blogPost.excerpt,
+        contentLength: blogPost.content.length
+      });
+      
       // If not a dry run, save to database
       if (!dryRun) {
         const supabaseService = SupabaseService.getInstance();

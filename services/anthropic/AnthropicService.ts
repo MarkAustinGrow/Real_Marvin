@@ -189,6 +189,8 @@ EXCERPT: [A 1-2 sentence excerpt that captures the essence of the post]`;
         let content = '';
         let excerpt = '';
         
+        console.log('Raw response from Claude:', response);
+        
         // Extract title
         const titleMatch = response.match(/TITLE:\s*(.*?)(?:\n|$)/);
         if (titleMatch && titleMatch[1]) {
@@ -205,6 +207,13 @@ EXCERPT: [A 1-2 sentence excerpt that captures the essence of the post]`;
         const excerptMatch = response.match(/EXCERPT:\s*([\s\S]*?)(?=$)/);
         if (excerptMatch && excerptMatch[1]) {
             excerpt = excerptMatch[1].trim();
+            console.log('Extracted excerpt:', excerpt);
+        } else {
+            console.log('Failed to extract excerpt. Using fallback.');
+            // Fallback: Create an excerpt from the first paragraph of content
+            const firstParagraph = content.split('\n\n')[0];
+            excerpt = firstParagraph.substring(0, 150) + (firstParagraph.length > 150 ? '...' : '');
+            console.log('Fallback excerpt:', excerpt);
         }
         
         return { title, content, excerpt };
