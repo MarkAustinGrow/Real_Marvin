@@ -55,7 +55,7 @@
           </div>
         </div>
         
-        <div class="card">
+        <div class="card mb-4">
           <div class="card-header">Generate Test Tweet</div>
           <div class="card-body">
             <form id="tweet-form">
@@ -72,6 +72,32 @@
                 <button type="submit" class="btn btn-danger">Post Test Tweet</button>
               </div>
             </form>
+          </div>
+        </div>
+        
+        <div class="card mb-4">
+          <div class="card-header">Test Blog Post</div>
+          <div class="card-body">
+            <p class="text-muted">Test the blog post scheduler to check for and post any blog posts with "ready_to_tweet" status.</p>
+            
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="dry-run-checkbox" checked>
+              <label class="form-check-label" for="dry-run-checkbox">
+                Dry Run Mode (simulate posting without actually posting to Twitter)
+              </label>
+            </div>
+            
+            <div class="d-grid">
+              <button type="button" class="btn btn-primary" id="test-blog-post-btn">Test Blog Post</button>
+            </div>
+            
+            <div class="mt-3" id="blog-post-result" style="display: none;">
+              <div class="alert alert-info">
+                <h5 id="blog-post-result-title">Results:</h5>
+                <p id="blog-post-result-message"></p>
+                <div id="blog-post-result-details"></div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -108,6 +134,89 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      // Test Blog Post functionality
+      document.getElementById('test-blog-post-btn').addEventListener('click', function() {
+        const button = document.getElementById('test-blog-post-btn');
+        const resultContainer = document.getElementById('blog-post-result');
+        const resultTitle = document.getElementById('blog-post-result-title');
+        const resultMessage = document.getElementById('blog-post-result-message');
+        const resultDetails = document.getElementById('blog-post-result-details');
+        const dryRun = document.getElementById('dry-run-checkbox').checked;
+        
+        // Update button state
+        button.disabled = true;
+        button.textContent = 'Processing...';
+        
+        // Clear previous results
+        resultMessage.textContent = '';
+        resultDetails.innerHTML = '';
+        resultContainer.style.display = 'none';
+        
+        // Make API request
+        fetch('/api/test-blog-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            dryRun: dryRun
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          // Update button state
+          button.disabled = false;
+          button.textContent = 'Test Blog Post';
+          
+          // Show result container
+          resultContainer.style.display = 'block';
+          
+          // Update result message
+          if (data.success) {
+            resultTitle.textContent = dryRun ? 'Dry Run Results:' : 'Results:';
+            resultMessage.textContent = data.message;
+            
+            // Display post details if available
+            if (data.posts && data.posts.length > 0) {
+              const detailsHtml = data.posts.map(post => {
+                const statusClass = post.status === 'success' ? 'text-success' : 
+                                   post.status === 'error' ? 'text-danger' : 'text-warning';
+                
+                return `
+                  <div class="card mb-2">
+                    <div class="card-body">
+                      <h6>${post.title}</h6>
+                      <p class="${statusClass}">Status: ${post.status}</p>
+                      ${post.error ? `<p class="text-danger">Error: ${post.error}</p>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('');
+              
+              resultDetails.innerHTML = detailsHtml;
+            } else {
+              resultDetails.innerHTML = '<p>No blog posts were found with "ready_to_tweet" status.</p>';
+            }
+          } else {
+            resultTitle.textContent = 'Error:';
+            resultMessage.textContent = data.message || 'An unknown error occurred';
+            resultContainer.classList.remove('alert-info');
+            resultContainer.classList.add('alert-danger');
+          }
+        })
+        .catch(error => {
+          // Update button state
+          button.disabled = false;
+          button.textContent = 'Test Blog Post';
+          
+          // Show error
+          resultContainer.style.display = 'block';
+          resultTitle.textContent = 'Error:';
+          resultMessage.textContent = 'Failed to test blog post. Please try again.';
+          console.error('Error:', error);
+        });
+      });
+      
       // Load categories
       fetch('/api/categories')
         .then(response => response.json())

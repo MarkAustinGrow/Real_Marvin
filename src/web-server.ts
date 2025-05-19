@@ -4,6 +4,7 @@ import basicAuth from 'express-basic-auth';
 import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
 import { EngagementService } from '../services/engagement/EngagementService';
+import { blogPostScheduler } from './blog-post-scheduler';
 
 export function startWebServer() {
   const app = express();
@@ -37,6 +38,88 @@ export function startWebServer() {
   app.use(express.json());
   
   // API endpoints
+  app.post('/api/test-blog-post', async (req: Request, res: Response) => {
+    try {
+      console.log('Testing blog post...');
+      
+      // Get dry run option from request
+      const dryRun = req.body.dryRun === true;
+      console.log(`Dry run mode: ${dryRun}`);
+      
+      // Access the private method using type assertion
+      const scheduler = blogPostScheduler as any;
+      
+      // Store original dry run setting
+      const originalDryRun = scheduler.config?.blogPostScheduler?.dryRun;
+      
+      // Set dry run mode if requested
+      if (scheduler.config && scheduler.config.blogPostScheduler) {
+        scheduler.config.blogPostScheduler.dryRun = dryRun;
+        scheduler.config.blogPostScheduler.updateStatusInDryRun = dryRun;
+      }
+      
+      // Create a variable to capture processed posts
+      let processedPosts: any[] = [];
+      
+      // Override the processBlogPost method temporarily to capture results
+      const originalProcessMethod = scheduler.processBlogPost;
+      scheduler.processBlogPost = async function(post: any) {
+        processedPosts.push({
+          id: post.id,
+          title: post.title,
+          status: 'processing'
+        });
+        
+        try {
+          await originalProcessMethod.call(this, post);
+          // Update status to success
+          const postIndex = processedPosts.findIndex(p => p.id === post.id);
+          if (postIndex >= 0) {
+            processedPosts[postIndex].status = 'success';
+          }
+        } catch (error: any) {
+          // Update status to error
+          const postIndex = processedPosts.findIndex(p => p.id === post.id);
+          if (postIndex >= 0) {
+            processedPosts[postIndex].status = 'error';
+            processedPosts[postIndex].error = error.message;
+          }
+          throw error;
+        }
+      };
+      
+      // Run the blog post check
+      try {
+        await scheduler.checkAndPostBlogPosts();
+      } finally {
+        // Restore original methods and settings
+        scheduler.processBlogPost = originalProcessMethod;
+        
+        // Restore original dry run setting
+        if (scheduler.config && scheduler.config.blogPostScheduler) {
+          scheduler.config.blogPostScheduler.dryRun = originalDryRun;
+          scheduler.config.blogPostScheduler.updateStatusInDryRun = originalDryRun;
+        }
+      }
+      
+      // Return results
+      res.json({
+        success: true,
+        dryRun: dryRun,
+        message: processedPosts.length > 0 
+          ? `Processed ${processedPosts.length} blog post(s)` 
+          : 'No blog posts found with ready_to_tweet status',
+        posts: processedPosts
+      });
+    } catch (error: unknown) {
+      console.error('Error in test-blog-post endpoint:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
   app.post('/api/test-tweet', async (req: Request, res: Response) => {
     try {
       const category = req.body.category || 'Toolbox';

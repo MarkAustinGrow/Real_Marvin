@@ -51,6 +51,17 @@ You can generate and post test tweets:
 2. Click "Preview Tweet" to see how the tweet will look without posting it
 3. Click "Post Test Tweet" to generate and post a tweet immediately
 
+### Test Blog Post
+
+You can test the blog post scheduler to check for and post any blog posts with "ready_to_tweet" status:
+
+1. Check or uncheck the "Dry Run Mode" option (when checked, it will simulate posting without actually posting to Twitter)
+2. Click "Test Blog Post" to trigger the blog post scheduler
+3. View the results, which will show:
+   - Whether any blog posts were found with "ready_to_tweet" status
+   - The title and status of each processed blog post
+   - Any errors that occurred during processing
+
 ### Engagement Rules Management
 
 The engagement rules section allows you to configure how Marvin responds to user interactions:
