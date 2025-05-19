@@ -1,5 +1,6 @@
 import { SupabaseService, CharacterData } from '../supabase/SupabaseService';
 import { OpenAIService } from '../openai/OpenAIService';
+import { AnthropicService } from '../anthropic/AnthropicService';
 import { PostContent } from '../../types';
 import MemoryService from '../memory/MemoryService';
 import { config } from '../../config';
@@ -95,6 +96,70 @@ export class ContentGenerator {
      * Stores generated content as a memory
      * @param content The content to store
      */
+    /**
+     * Generates a blog post based on Marvin's character and optional theme
+     * @param theme Optional theme for the blog post
+     * @param useMemory Whether to include memories in the generation
+     * @returns Generated blog post with title, content, and excerpt
+     */
+    public async generateBlogPost(theme: string = 'technology', useMemory: boolean = true): Promise<{
+        title: string;
+        content: string;
+        excerpt: string;
+    }> {
+        if (!this.characterData) {
+            await this.initialize();
+        }
+
+        const character = this.characterData!;
+        
+        // Retrieve relevant memories if enabled
+        const memories: string[] = [];
+        if (useMemory) {
+            const relevantMemories = await this.getRelevantMemories(theme);
+            memories.push(...relevantMemories);
+        }
+        
+        // Generate blog post using Anthropic Claude
+        const anthropicService = AnthropicService.getInstance();
+        const response = await anthropicService.generateBlogPost(
+            character,
+            theme,
+            memories
+        );
+        
+        // Store the generated blog post as a memory if enabled
+        if (this.saveToMemory) {
+            await this.storeBlogAsMemory(response.title, response.excerpt, theme);
+        }
+        
+        return response;
+    }
+
+    /**
+     * Stores generated blog post as a memory
+     * @param title The blog post title
+     * @param excerpt The blog post excerpt
+     * @param theme The blog post theme
+     */
+    private async storeBlogAsMemory(title: string, excerpt: string, theme: string): Promise<void> {
+        try {
+            await this.memoryService.addMemory({
+                type: "output",
+                content: excerpt,
+                tags: ["blog", `theme:${theme}`],
+                metadata: {
+                    source: "blog_post",
+                    title: title,
+                    format: "markdown",
+                    alignment_score: 0.95
+                }
+            });
+        } catch (error) {
+            console.error('Error storing blog post as memory:', error);
+        }
+    }
+
     private async storeContentAsMemory(content: PostContent): Promise<void> {
         try {
             await this.memoryService.addMemory({

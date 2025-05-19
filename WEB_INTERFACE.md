@@ -51,6 +51,23 @@ You can generate and post test tweets:
 2. Click "Preview Tweet" to see how the tweet will look without posting it
 3. Click "Post Test Tweet" to generate and post a tweet immediately
 
+### Generate Blog Post
+
+You can generate blog posts with Marvin's unique style and perspective:
+
+1. Enter a theme for the blog post (e.g., "technology", "AI ethics", "creativity")
+2. Optionally add tags (comma-separated) for categorization
+3. Choose whether to use Memory (when checked, relevant memories will be included in the generation)
+4. Click "Generate Blog Post" to create a new blog post
+5. Preview the generated content, which includes:
+   - Title
+   - Excerpt (a brief summary)
+   - Full markdown-formatted content
+6. Choose what to do with the generated blog post:
+   - Click "Regenerate" to create a new version
+   - Click "Save as Draft" to save it to the database with "draft" status
+   - Click "Mark as Ready to Tweet" to save it with "ready_to_tweet" status (making it eligible for posting to Twitter)
+
 ### Test Blog Post
 
 You can test the blog post scheduler to check for and post any blog posts with "ready_to_tweet" status:

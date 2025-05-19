@@ -5,6 +5,7 @@ import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
 import { EngagementService } from '../services/engagement/EngagementService';
 import { blogPostScheduler } from './blog-post-scheduler';
+import { SupabaseService } from '../services/supabase/SupabaseService';
 
 export function startWebServer() {
   const app = express();
@@ -38,6 +39,68 @@ export function startWebServer() {
   app.use(express.json());
   
   // API endpoints
+  app.post('/api/generate-blog-post', async (req: Request, res: Response) => {
+    try {
+      const theme = req.body.theme || 'technology';
+      const useMemory = req.body.useMemory !== false; // Default to true
+      const dryRun = req.body.dryRun === true;
+      
+      const contentGenerator = ContentGenerator.getInstance();
+      await contentGenerator.initialize();
+      
+      // Generate the blog post
+      const blogPost = await contentGenerator.generateBlogPost(theme, useMemory);
+      
+      // If not a dry run, save to database
+      if (!dryRun) {
+        const supabaseService = SupabaseService.getInstance();
+        const { data, error } = await supabaseService.client
+          .from('blog_posts')
+          .insert({
+            title: blogPost.title,
+            markdown: blogPost.content,
+            excerpt: blogPost.excerpt,
+            status: req.body.status || 'draft', // Default to draft
+            created_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+          
+        if (error) {
+          console.error('Error saving blog post:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to save blog post to database',
+            blogPost
+          });
+        }
+        
+        // Return success with blog post and ID
+        return res.json({
+          success: true,
+          message: 'Blog post generated and saved successfully',
+          blogPost,
+          id: data.id,
+          status: req.body.status || 'draft'
+        });
+      }
+      
+      // Return success for dry run
+      return res.json({
+        success: true,
+        message: 'Blog post generated successfully (dry run)',
+        blogPost,
+        dryRun: true
+      });
+    } catch (error: unknown) {
+      console.error('Error in generate-blog-post endpoint:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
   app.post('/api/test-blog-post', async (req: Request, res: Response) => {
     try {
       console.log('Testing blog post...');

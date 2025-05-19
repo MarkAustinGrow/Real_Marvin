@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Marvin AI Agent - Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body {
       background-image: url('images/Marvinbg.png');
@@ -76,6 +77,53 @@
         </div>
         
         <div class="card mb-4">
+          <div class="card-header">Generate Blog Post</div>
+          <div class="card-body">
+            <p class="text-muted">Generate a blog post with Marvin's unique style and perspective.</p>
+            
+            <div class="mb-3">
+              <label for="blog-theme" class="form-label">Theme</label>
+              <input type="text" class="form-control" id="blog-theme" placeholder="e.g., technology, AI ethics, creativity">
+            </div>
+            
+            <div class="mb-3">
+              <label for="blog-tags" class="form-label">Tags (comma-separated)</label>
+              <input type="text" class="form-control" id="blog-tags" placeholder="e.g., AI, philosophy, art">
+            </div>
+            
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="use-memory-checkbox" checked>
+              <label class="form-check-label" for="use-memory-checkbox">
+                Use Memory (include relevant memories in generation)
+              </label>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-primary" id="generate-blog-post-btn">Generate Blog Post</button>
+            </div>
+            
+            <div class="mt-4" id="blog-post-preview" style="display: none;">
+              <h5>Blog Post Preview</h5>
+              
+              <div class="card mb-3">
+                <div class="card-body">
+                  <h3 id="blog-post-title"></h3>
+                  <p class="text-muted" id="blog-post-excerpt"></p>
+                  <hr>
+                  <div id="blog-post-content" class="markdown-content"></div>
+                </div>
+              </div>
+              
+              <div class="d-grid gap-2">
+                <button type="button" class="btn btn-secondary" id="regenerate-blog-post-btn">Regenerate</button>
+                <button type="button" class="btn btn-success" id="save-as-draft-btn">Save as Draft</button>
+                <button type="button" class="btn btn-danger" id="mark-as-ready-btn">Mark as Ready to Tweet</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card mb-4">
           <div class="card-header">Test Blog Post</div>
           <div class="card-body">
             <p class="text-muted">Test the blog post scheduler to check for and post any blog posts with "ready_to_tweet" status.</p>
@@ -134,6 +182,131 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      // Blog Post Generation
+      document.getElementById('generate-blog-post-btn').addEventListener('click', function() {
+        const button = document.getElementById('generate-blog-post-btn');
+        const theme = document.getElementById('blog-theme').value || 'technology';
+        const useMemory = document.getElementById('use-memory-checkbox').checked;
+        
+        // Update button state
+        button.disabled = true;
+        button.textContent = 'Generating...';
+        
+        // Hide preview if visible
+        document.getElementById('blog-post-preview').style.display = 'none';
+        
+        // Make API request
+        fetch('/api/generate-blog-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            theme: theme,
+            useMemory: useMemory,
+            dryRun: true // Don't save to database yet
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          // Update button state
+          button.disabled = false;
+          button.textContent = 'Generate Blog Post';
+          
+          if (data.success) {
+            // Show preview
+            document.getElementById('blog-post-title').textContent = data.blogPost.title;
+            document.getElementById('blog-post-excerpt').textContent = data.blogPost.excerpt;
+            
+            // Render markdown content
+            const renderedContent = marked.parse(data.blogPost.content);
+            document.getElementById('blog-post-content').innerHTML = renderedContent;
+            
+            // Show preview container
+            document.getElementById('blog-post-preview').style.display = 'block';
+            
+            // Set up regenerate button
+            document.getElementById('regenerate-blog-post-btn').onclick = function() {
+              document.getElementById('generate-blog-post-btn').click();
+            };
+            
+            // Set up save as draft button
+            document.getElementById('save-as-draft-btn').onclick = function() {
+              saveBlogPost('draft');
+            };
+            
+            // Set up mark as ready button
+            document.getElementById('mark-as-ready-btn').onclick = function() {
+              saveBlogPost('ready_to_tweet');
+            };
+          } else {
+            alert('Error generating blog post: ' + data.message);
+          }
+        })
+        .catch(error => {
+          button.disabled = false;
+          button.textContent = 'Generate Blog Post';
+          console.error('Error:', error);
+          alert('Failed to generate blog post. Please try again.');
+        });
+      });
+      
+      // Function to save blog post
+      function saveBlogPost(status) {
+        const theme = document.getElementById('blog-theme').value || 'technology';
+        const tags = document.getElementById('blog-tags').value;
+        const useMemory = document.getElementById('use-memory-checkbox').checked;
+        const title = document.getElementById('blog-post-title').textContent;
+        const content = document.getElementById('blog-post-content').innerHTML;
+        
+        // Disable buttons
+        document.getElementById('regenerate-blog-post-btn').disabled = true;
+        document.getElementById('save-as-draft-btn').disabled = true;
+        document.getElementById('mark-as-ready-btn').disabled = true;
+        
+        // Make API request to save
+        fetch('/api/generate-blog-post', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            theme: theme,
+            tags: tags,
+            useMemory: useMemory,
+            status: status,
+            dryRun: false
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          // Re-enable buttons
+          document.getElementById('regenerate-blog-post-btn').disabled = false;
+          document.getElementById('save-as-draft-btn').disabled = false;
+          document.getElementById('mark-as-ready-btn').disabled = false;
+          
+          if (data.success) {
+            alert(`Blog post ${status === 'draft' ? 'saved as draft' : 'marked as ready to tweet'}!`);
+            
+            // Clear form
+            document.getElementById('blog-theme').value = '';
+            document.getElementById('blog-tags').value = '';
+            document.getElementById('blog-post-preview').style.display = 'none';
+          } else {
+            alert('Error saving blog post: ' + data.message);
+          }
+        })
+        .catch(error => {
+          // Re-enable buttons
+          document.getElementById('regenerate-blog-post-btn').disabled = false;
+          document.getElementById('save-as-draft-btn').disabled = false;
+          document.getElementById('mark-as-ready-btn').disabled = false;
+          
+          console.error('Error:', error);
+          alert('Failed to save blog post. Please try again.');
+        });
+      }
+      
       // Test Blog Post functionality
       document.getElementById('test-blog-post-btn').addEventListener('click', function() {
         const button = document.getElementById('test-blog-post-btn');
