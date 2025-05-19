@@ -11,9 +11,11 @@
 - Blog post scheduling and automatic posting to Twitter
 - User engagement tracking and automated responses to interactions
 - Daily engagement wrap-ups highlighting fan interactions
+- Long-term memory storage and retrieval for context-aware interactions
+- Semantic search for finding relevant past content and interactions
 ## Technical Architecture
 - Node.js backend with TypeScript for type safety
-- Singleton pattern for service classes (SupabaseService, TwitterService, ContentGenerator, OpenAIService, AnthropicService, ImageTweetService, GrokService, EngagementService, BlogPostScheduler)
+- Singleton pattern for service classes (SupabaseService, TwitterService, ContentGenerator, OpenAIService, AnthropicService, ImageTweetService, GrokService, EngagementService, BlogPostScheduler, MemoryService)
 - Modular design with separation of concerns between services
 - Database integration via Supabase (PostgreSQL)
 - AI content generation via OpenAI API and Anthropic Claude API
@@ -46,6 +48,15 @@
   - Tweet content and post URL
   - Status and metadata (for thread tracking)
 ## Components
+### MemoryService:
+- Integration with external Memory API for long-term memory storage
+- Storage of user interactions, generated content, and research
+- Semantic search capabilities for retrieving relevant memories
+- Robust error handling with automatic retry for network issues
+- Support for various memory types: tweet, research, thought, output, quote
+- Memory tagging for improved organization and retrieval
+- Alignment threshold filtering to ensure quality memories
+
 ### SupabaseService:
 - Database connection and query management
 - Character data retrieval with fuzzy search fallback
@@ -66,12 +77,15 @@
 - Tweet generation based on character persona
 - Category-based content creation
 - Hashtag generation and management
+- Memory integration for context-aware content generation
+- Retrieval of relevant memories to inform new content
 
 ### ImageTweetService:
 - Image tweet generation and posting
 - Retrieval of artwork from database
 - Integration with AnthropicService for tweet text generation
 - Image downloading and processing
+- Memory integration for storing image tweets
 
 ### TwitterService:
 - Twitter API integration for posting content
@@ -93,6 +107,8 @@
 - Recurring fan detection and prioritization
 - Daily engagement wrap-up generation
 - Engagement metrics analysis
+- Memory integration for storing user interactions
+- Personalized responses based on past interactions
 
 ### EngagementScheduler:
 - Scheduled engagement monitoring (every 30 minutes)
@@ -127,12 +143,13 @@
 
 ## Configuration
 - Environment-based configuration via .env file
-- API keys for OpenAI, Anthropic, Twitter, and Grok
+- API keys for OpenAI, Anthropic, Twitter, Grok, and Memory API
 - Database connection parameters
 - Character selection parameter
 - Scheduling parameters for tweet timing
 - Blog post scheduler configuration (enabled/disabled, days, time, dry run mode)
 - Web interface authentication credentials
+- Memory service configuration (API URL, save to memory toggle)
 ## Future Expansion Points
 - Video content generation (planned)
 - Voice generation integration (planned)
