@@ -2,6 +2,7 @@ import { SupabaseService } from '../supabase/SupabaseService';
 import { GrokService } from '../grok/GrokService';
 import { TwitterService } from '../twitter/TwitterService';
 import { PostContent } from '../../types';
+import MemoryService from '../memory/MemoryService';
 
 /**
  * Types of engagement that can be tracked
@@ -43,6 +44,8 @@ export class EngagementService {
     private supabaseService: SupabaseService;
     private grokService: GrokService;
     private twitterService: TwitterService;
+    private memoryService: typeof MemoryService;
+    private saveToMemory: boolean;
     
     // Default engagement rules
     private rules: EngagementRule[] = [
@@ -84,6 +87,8 @@ export class EngagementService {
         this.supabaseService = SupabaseService.getInstance();
         this.grokService = GrokService.getInstance();
         this.twitterService = TwitterService.getInstance();
+        this.memoryService = MemoryService;
+        this.saveToMemory = process.env.SAVE_OUTPUT_TO_MEMORY === 'true';
         console.log('Initializing EngagementService');
     }
     
@@ -141,11 +146,57 @@ export class EngagementService {
                 
             console.log('Engagement logged successfully');
             
+            // Store the engagement as a memory if enabled
+            if (this.saveToMemory) {
+                await this.storeEngagementAsMemory(engagement);
+            }
+            
             // Check if we should respond to this engagement
             await this.processEngagement(engagement);
         } catch (error) {
             console.error('Error logging engagement:', error);
             throw new Error('Failed to log engagement');
+        }
+    }
+    
+    /**
+     * Stores an engagement as a memory
+     * @param engagement The engagement to store
+     */
+    private async storeEngagementAsMemory(engagement: EngagementMetric): Promise<void> {
+        try {
+            await this.memoryService.addMemory({
+                type: 'engagement',
+                content: engagement.tweet_content || `User @${engagement.username} ${this.getEngagementVerb(engagement.engagement_type)} Marvin's tweet`,
+                source: 'twitter',
+                tags: [engagement.engagement_type, 'twitter', 'user_interaction'],
+                metadata: {
+                    user_id: engagement.user_id,
+                    username: engagement.username,
+                    engagement_type: engagement.engagement_type,
+                    tweet_id: engagement.tweet_id,
+                    timestamp: new Date().toISOString()
+                }
+            });
+            console.log(`Stored ${engagement.engagement_type} from @${engagement.username} as memory`);
+        } catch (error) {
+            console.error('Error storing engagement as memory:', error);
+        }
+    }
+    
+    /**
+     * Gets a verb describing the engagement type
+     * @param engagementType The type of engagement
+     * @returns A verb describing the engagement
+     */
+    private getEngagementVerb(engagementType: EngagementType): string {
+        switch (engagementType) {
+            case 'like': return 'liked';
+            case 'repost': return 'reposted';
+            case 'reply': return 'replied to';
+            case 'follow': return 'followed';
+            case 'mention': return 'mentioned';
+            default: return 'interacted with';
         }
     }
     
@@ -356,6 +407,51 @@ export class EngagementService {
     }
     
     /**
+     * Retrieves relevant memories for an engagement
+     * @param engagement The engagement to get memories for
+     * @returns Array of relevant memory strings
+     */
+    private async getRelevantMemoriesForEngagement(engagement: EngagementMetric): Promise<string[]> {
+        try {
+            // First, try to get memories related to this specific user
+            let userMemories = await this.memoryService.searchMemories(engagement.username);
+            
+            // If we don't have enough user-specific memories, get memories related to the engagement type
+            if (userMemories.length < 2) {
+                const typeMemories = await this.memoryService.searchMemories(engagement.engagement_type);
+                
+                // Combine unique memories
+                const allMemories = [...userMemories];
+                for (const memory of typeMemories) {
+                    if (!allMemories.some((m: any) => m.content === memory.content)) {
+                        allMemories.push(memory);
+                    }
+                }
+                
+                userMemories = allMemories;
+            }
+            
+            // If we have tweet content, also search for memories related to that
+            if (engagement.tweet_content) {
+                const contentMemories = await this.memoryService.searchMemories(engagement.tweet_content);
+                
+                // Add unique content memories
+                for (const memory of contentMemories) {
+                    if (!userMemories.some((m: any) => m.content === memory.content)) {
+                        userMemories.push(memory);
+                    }
+                }
+            }
+            
+            // Format memories for inclusion in prompts and limit to 3
+            return userMemories.map((memory: any) => memory.content).slice(0, 3);
+        } catch (error) {
+            console.error('Error retrieving memories for engagement:', error);
+            return [];
+        }
+    }
+    
+    /**
      * Responds to an engagement with a reply generated by Claude
      * @param engagement The engagement to respond to
      */
@@ -370,8 +466,11 @@ export class EngagementService {
             // Get Marvin's character data from Supabase
             const characterData = await this.supabaseService.getCharacterData('marvin');
             
+            // Get relevant memories for this user and engagement type
+            const relevantMemories = await this.getRelevantMemoriesForEngagement(engagement);
+            
             // Build context for the response
-            const context = await this.buildResponseContext(engagement, characterData);
+            const context = await this.buildResponseContext(engagement, characterData, relevantMemories);
             
             // Generate reply using Claude instead of Grok
             let reply;
@@ -386,7 +485,7 @@ export class EngagementService {
                 const isQuestion = this.isQuestion(engagement.tweet_content || '');
                 
                 // Generate a response that directly answers questions when present
-                reply = await this.generateClaudeResponse(customPrompt, characterData, isQuestion);
+                reply = await this.generateClaudeResponse(customPrompt, characterData, isQuestion, relevantMemories);
             } else {
                 // For other engagement types, use Grok as before
                 console.log('Generating response with Grok for non-mention engagement');
@@ -457,9 +556,15 @@ export class EngagementService {
      * @param prompt The prompt text
      * @param characterData Marvin's character data
      * @param isQuestion Whether the prompt contains a question
+     * @param memories Optional array of relevant memories
      * @returns Generated response
      */
-    private async generateClaudeResponse(prompt: string, characterData: any, isQuestion: boolean = false): Promise<string> {
+    private async generateClaudeResponse(
+        prompt: string, 
+        characterData: any, 
+        isQuestion: boolean = false,
+        memories: string[] = []
+    ): Promise<string> {
         try {
             // Create a system prompt that includes Marvin's character data
             let systemPrompt = `You are Marvin, an AI with the following characteristics:
@@ -474,6 +579,15 @@ Respond to the user's message in a way that reflects Marvin's personality:
 - Reference street art, graffiti culture, AI art, and experimental media
 - Keep your response short (under 200 characters) to fit in a tweet
 - Don't use hashtags in your response`;
+
+            // Add memories if available
+            if (memories.length > 0) {
+                systemPrompt += `\n\nYou have these memories about past interactions:`;
+                memories.forEach(memory => {
+                    systemPrompt += `\n- ${memory}`;
+                });
+                systemPrompt += `\n\nUse these memories to personalize your response when relevant.`;
+            }
 
             // Add special instructions for questions
             if (isQuestion) {
@@ -502,9 +616,14 @@ Craft a brief, engaging response that showcases your unique personality.`;
      * Builds context for the response based on engagement data
      * @param engagement The engagement data
      * @param characterData Optional character data to include in the context
+     * @param memories Optional array of relevant memories
      * @returns Context string for the AI
      */
-    private async buildResponseContext(engagement: EngagementMetric, characterData?: any): Promise<string> {
+    private async buildResponseContext(
+        engagement: EngagementMetric, 
+        characterData?: any,
+        memories: string[] = []
+    ): Promise<string> {
         let context = '';
         
         // Add character context if available
@@ -516,6 +635,15 @@ You are Marvin, with these traits:
 - Interested in ${characterData.content.topics.slice(0, 3).join(', ')}
 - ${characterData.content.bio[0]}
 `;
+        }
+        
+        // Add memories if available
+        if (memories.length > 0) {
+            characterContext += `\nYou remember these interactions:`;
+            memories.forEach(memory => {
+                characterContext += `\n- ${memory}`;
+            });
+            characterContext += `\n\nUse these memories to personalize your response.`;
         }
         
         switch (engagement.engagement_type) {

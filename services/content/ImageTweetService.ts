@@ -2,6 +2,7 @@ import { SupabaseService } from '../supabase/SupabaseService';
 import { AnthropicService } from '../anthropic/AnthropicService';
 import { TwitterService } from '../twitter/TwitterService';
 import { PostContent } from '../../types';
+import MemoryService from '../memory/MemoryService';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -12,11 +13,15 @@ export class ImageTweetService {
     private supabaseService: SupabaseService;
     private anthropicService: AnthropicService;
     private twitterService: TwitterService;
+    private memoryService: typeof MemoryService;
+    private saveToMemory: boolean;
 
     private constructor() {
         this.supabaseService = SupabaseService.getInstance();
         this.anthropicService = AnthropicService.getInstance();
         this.twitterService = TwitterService.getInstance();
+        this.memoryService = MemoryService;
+        this.saveToMemory = process.env.SAVE_OUTPUT_TO_MEMORY === 'true';
     }
 
     public static getInstance(): ImageTweetService {
@@ -45,8 +50,11 @@ export class ImageTweetService {
                 return false;
             }
 
-            // 3. Generate tweet text based on the prompt and image
-            const tweetText = await this.generateTweetTextForImage(prompt.text);
+            // 3. Get relevant memories for this prompt
+            const relevantMemories = await this.getRelevantMemories(prompt.text);
+            
+            // 4. Generate tweet text based on the prompt, image, and memories
+            const tweetText = await this.generateTweetTextForImage(prompt.text, relevantMemories);
 
             // 4. Create tweet content
             const tweetContent: PostContent = {
@@ -89,6 +97,12 @@ export class ImageTweetService {
                 // Mark the image as posted to prevent reposting
                 await this.markImageAsPosted(image.id);
                 console.log(`Image ${image.id} marked as posted to prevent future duplication`);
+                
+                // Store the tweet as a memory if enabled
+                if (this.saveToMemory) {
+                    await this.storeImageTweetAsMemory(tweetContent, image.image_url, prompt.text);
+                    console.log('Image tweet stored in memory system');
+                }
             } else {
                 console.log(`\n❌ ERROR: Image tweet could not be posted to Twitter`);
                 console.log(`Error details: ${postResult.message}`);
@@ -217,11 +231,73 @@ export class ImageTweetService {
     }
 
     /**
-     * Generates tweet text for an image based on the prompt
+     * Retrieves relevant memories based on prompt text
+     * @param promptText The prompt text to search for relevant memories
+     * @returns Array of relevant memory strings
      */
-    private async generateTweetTextForImage(promptText: string): Promise<string> {
-        // Use Anthropic Claude to generate a tweet based on the prompt
+    private async getRelevantMemories(promptText: string): Promise<string[]> {
         try {
+            // Search for memories related to the prompt
+            const memories = await this.memoryService.searchMemories(promptText);
+            
+            // Format memories for inclusion in prompts
+            return memories.map((memory: any) => memory.content).slice(0, 3);
+        } catch (error) {
+            console.error('Error retrieving memories:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Stores an image tweet as a memory
+     * @param content The tweet content
+     * @param imageUrl The URL of the image
+     * @param promptText The original prompt text
+     */
+    private async storeImageTweetAsMemory(
+        content: PostContent, 
+        imageUrl: string, 
+        promptText: string
+    ): Promise<void> {
+        try {
+            await this.memoryService.addMemory({
+                type: 'image_tweet',
+                content: content.text,
+                source: imageUrl,
+                tags: [...(content.hashtags || []), 'image', 'art'],
+                metadata: {
+                    platform: content.platform,
+                    prompt: promptText,
+                    image_url: imageUrl,
+                    timestamp: new Date().toISOString()
+                }
+            });
+        } catch (error) {
+            console.error('Error storing image tweet as memory:', error);
+        }
+    }
+
+    /**
+     * Generates tweet text for an image based on the prompt and memories
+     * @param promptText The prompt text to base the tweet on
+     * @param memories Optional array of relevant memories
+     * @returns Generated tweet text
+     */
+    private async generateTweetTextForImage(
+        promptText: string, 
+        memories: string[] = []
+    ): Promise<string> {
+        // Use Anthropic Claude to generate a tweet based on the prompt and memories
+        try {
+            // If we have memories, we need to include them in the prompt
+            if (memories.length > 0) {
+                const memoryContext = `
+                Consider these memories as you craft your response:
+                ${memories.map(m => `- "${m}"`).join('\n')}
+                `;
+                promptText = `${promptText}\n\n${memoryContext}`;
+            }
+            
             return await this.anthropicService.generateTweet(promptText);
         } catch (error) {
             console.error('Error generating tweet text for image:', error);

@@ -1,14 +1,20 @@
 import { SupabaseService, CharacterData } from '../supabase/SupabaseService';
 import { OpenAIService } from '../openai/OpenAIService';
 import { PostContent } from '../../types';
+import MemoryService from '../memory/MemoryService';
+import { config } from '../../config';
 
 export class ContentGenerator {
     private static instance: ContentGenerator;
     private characterData: CharacterData | null = null;
     private openAIService: OpenAIService;
+    private memoryService: typeof MemoryService;
+    private saveToMemory: boolean;
 
     private constructor() {
         this.openAIService = OpenAIService.getInstance();
+        this.memoryService = MemoryService;
+        this.saveToMemory = process.env.SAVE_OUTPUT_TO_MEMORY === 'true';
     }
 
     public static getInstance(): ContentGenerator {
@@ -37,19 +43,73 @@ export class ContentGenerator {
         }
 
         const character = this.characterData!;
+        const usedCategory = category || 'general';
         
-        // Generate tweet text using OpenAI
-        const text = await this.openAIService.generateTweetContent(character, category || 'general');
+        // Retrieve relevant memories for this category
+        const relevantMemories = await this.getRelevantMemories(usedCategory);
+        
+        // Generate tweet text using OpenAI with memories
+        const text = await this.openAIService.generateTweetContent(
+            character, 
+            usedCategory,
+            relevantMemories
+        );
         
         // Generate relevant hashtags
-        const hashtags = this.generateHashtags(character, category);
+        const hashtags = this.generateHashtags(character, usedCategory);
 
-        return {
+        const content = {
             text,
             hashtags,
             platform: 'twitter',
-            category
+            category: usedCategory
         };
+
+        // Store the generated tweet as a memory if enabled
+        if (this.saveToMemory) {
+            await this.storeContentAsMemory(content);
+        }
+
+        return content;
+    }
+
+    /**
+     * Retrieves relevant memories based on category or topic
+     * @param category The category or topic to search for
+     * @returns Array of relevant memory strings
+     */
+    private async getRelevantMemories(category: string): Promise<string[]> {
+        try {
+            // Search for memories related to the category
+            const memories = await this.memoryService.searchMemories(category);
+            
+            // Format memories for inclusion in prompts
+            return memories.map((memory: any) => memory.content).slice(0, 3);
+        } catch (error) {
+            console.error('Error retrieving memories:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Stores generated content as a memory
+     * @param content The content to store
+     */
+    private async storeContentAsMemory(content: PostContent): Promise<void> {
+        try {
+            await this.memoryService.addMemory({
+                type: 'tweet',
+                content: content.text,
+                tags: [...(content.hashtags || []), content.category || 'general'],
+                metadata: {
+                    platform: content.platform,
+                    category: content.category,
+                    timestamp: new Date().toISOString()
+                }
+            });
+        } catch (error) {
+            console.error('Error storing content as memory:', error);
+        }
     }
 
     private generateHashtags(character: CharacterData, category?: string): string[] {
@@ -75,4 +135,4 @@ export class ContentGenerator {
 
         return Array.from(hashtags);
     }
-} 
+}

@@ -28,14 +28,19 @@ export class OpenAIService {
     }
 
     /**
-     * Generates a tweet using OpenAI based on character data and category
+     * Generates a tweet using OpenAI based on character data, category, and memories
      * @param characterData Marvin's character data
      * @param category The tweet category
+     * @param memories Optional array of relevant memories to include in the prompt
      * @returns Generated tweet text
      */
-    public async generateTweetContent(characterData: CharacterData, category: string): Promise<string> {
+    public async generateTweetContent(
+        characterData: CharacterData, 
+        category: string, 
+        memories: string[] = []
+    ): Promise<string> {
         try {
-            const prompt = this.buildPrompt(characterData, category);
+            const prompt = this.buildPrompt(characterData, category, memories);
             
             // Try using createChatCompletion instead of createCompletion for GPT models
             const response = await this._openai.createChatCompletion({
@@ -57,22 +62,37 @@ export class OpenAIService {
         }
     }
 
-    private buildPrompt(characterData: CharacterData, category: string): string {
+    private buildPrompt(characterData: CharacterData, category: string, memories: string[] = []): string {
         const { content } = characterData;
         
-        return `You are ${characterData.display_name}, ${content.bio.join(' ')}
+        let prompt = `You are ${characterData.display_name}, ${content.bio.join(' ')}
         
 Your writing style is: ${content.style.post.join(', ')}
 Your topics of interest are: ${content.topics.join(', ')}
-Your key traits are: ${content.adjectives.join(', ')}
+Your key traits are: ${content.adjectives.join(', ')}`;
 
-Generate a single tweet about ${category} that:
+        // Add memories if available
+        if (memories.length > 0) {
+            prompt += `\n\nHere are some of your recent memories that might be relevant:`;
+            memories.forEach(memory => {
+                prompt += `\n- "${memory}"`;
+            });
+            prompt += `\n\nUse these memories as inspiration if relevant.`;
+        }
+
+        prompt += `\n\nGenerate a single tweet about ${category} that:
 1. Reflects your personality and style
 2. Is under 280 characters
 3. Includes relevant emojis
 4. Maintains your dry humor and tech-focused perspective
-5. Feels authentic to your character
+5. Feels authentic to your character`;
 
-Tweet:`;
+        if (memories.length > 0) {
+            prompt += `\n6. Incorporates or references your memories where appropriate`;
+        }
+
+        prompt += `\n\nTweet:`;
+        
+        return prompt;
     }
 }
