@@ -30,7 +30,7 @@ export class ContentGenerator {
      */
     public async initialize(): Promise<void> {
         const supabaseService = SupabaseService.getInstance();
-        this.characterData = await supabaseService.getCharacterData('marvin');
+        this.characterData = await supabaseService.getCharacterData('marvin-street');
     }
 
     /**
