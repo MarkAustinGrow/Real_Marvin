@@ -59,7 +59,7 @@ export class ImageTweetService {
             // 4. Create tweet content
             const tweetContent: PostContent = {
                 text: tweetText,
-                hashtags: ['AI', 'Art', 'AIArt', 'Marvin'],
+                hashtags: [], // Removed hashtags as per team preference
                 platform: 'twitter',
                 category: 'Art'
             };
@@ -301,7 +301,7 @@ export class ImageTweetService {
             return await this.anthropicService.generateTweet(promptText);
         } catch (error) {
             console.error('Error generating tweet text for image:', error);
-            return `Check out my latest digital creation. #AI #Art`;
+            return `Check out my latest digital creation.`;
         }
     }
 }

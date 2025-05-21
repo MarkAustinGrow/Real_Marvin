@@ -463,8 +463,8 @@ export class EngagementService {
                 return;
             }
             
-            // Get Marvin's character data from Supabase
-            const characterData = await this.supabaseService.getCharacterData('marvin');
+            // Get Marvin's character data from Supabase (using street style character)
+            const characterData = await this.supabaseService.getCharacterData('marvin-street');
             
             // Get relevant memories for this user and engagement type
             const relevantMemories = await this.getRelevantMemoriesForEngagement(engagement);
@@ -575,8 +575,9 @@ Topics: ${characterData.content.topics.join(', ')}
 Adjectives: ${characterData.content.adjectives.join(', ')}
 
 Respond to the user's message in a way that reflects Marvin's personality:
-- Be cryptic, poetic, reverent, subversive, and introspective
-- Reference street art, graffiti culture, AI art, and experimental media
+- Be confident, casual, and street-smart with urban swagger
+- Use occasional slang terms like "fam", "vibes", "real talk", etc.
+- Reference street art, graffiti culture, AI art, and digital creativity with a grounded tone
 - Keep your response short (under 200 characters) to fit in a tweet
 - Don't use hashtags in your response`;
 
@@ -591,7 +592,7 @@ Respond to the user's message in a way that reflects Marvin's personality:
 
             // Add special instructions for questions
             if (isQuestion) {
-                systemPrompt += `\n\nIMPORTANT: The user's message contains a question. First provide a direct, clear answer to their question, then transition into your poetic style. Always answer the user's question before being poetic.`;
+                systemPrompt += `\n\nIMPORTANT: The user's message contains a question. First provide a direct, clear answer to their question, then transition into your street-smart, casual style. Always answer the user's question before adding your street style flair.`;
             }
 
             // Use a custom method to generate a response with Claude
@@ -648,22 +649,22 @@ You are Marvin, with these traits:
         
         switch (engagement.engagement_type) {
             case 'like':
-                context = `${characterContext}@${engagement.username} just liked a tweet that says: "${engagement.tweet_content || 'your tweet'}". Write a clever, funny thank-you tweet or reaction. Keep it short.`;
+                context = `${characterContext}@${engagement.username} just liked a tweet that says: "${engagement.tweet_content || 'your tweet'}". Write a thank-you tweet with street-smart style and urban swagger. Keep it short and use casual slang.`;
                 break;
             case 'repost':
-                context = `${characterContext}@${engagement.username} keeps sharing Marvin's glitchy poetry like it's a digital gospel. What would Marvin say back? Keep it witty.`;
+                context = `${characterContext}@${engagement.username} keeps sharing Marvin's street-smart content like it's digital gold. What would Marvin say back? Keep it witty with urban swagger.`;
                 break;
             case 'reply':
-                context = `${characterContext}@${engagement.username} replied to your tweet saying: "${engagement.tweet_content || 'something interesting'}". Respond with Marvin's signature sarcastic wit. Keep it short.`;
+                context = `${characterContext}@${engagement.username} replied to your tweet saying: "${engagement.tweet_content || 'something interesting'}". Respond with Marvin's signature street-smart style and urban swagger. Keep it short.`;
                 break;
             case 'follow':
-                context = `${characterContext}@${engagement.username} just followed Marvin. Write a funny welcome message that showcases Marvin's quirky personality. Keep it short.`;
+                context = `${characterContext}@${engagement.username} just followed Marvin. Write a welcome message that showcases Marvin's street-smart style with urban swagger. Keep it short and use casual slang.`;
                 break;
             case 'mention':
-                context = `${characterContext}@${engagement.username} mentioned you in a tweet saying: "${engagement.tweet_content || 'something interesting'}". Respond with Marvin's signature poetic, cryptic style. Keep it short.`;
+                context = `${characterContext}@${engagement.username} mentioned you in a tweet saying: "${engagement.tweet_content || 'something interesting'}". Respond with Marvin's signature street-smart, casual style with urban swagger. Keep it short.`;
                 break;
             default:
-                context = `${characterContext}@${engagement.username} engaged with Marvin's content. Write a short, witty response that shows off Marvin's sarcastic personality.`;
+                context = `${characterContext}@${engagement.username} engaged with Marvin's content. Write a short response with street-smart style and urban swagger that shows off Marvin's confident personality. Use casual slang.`;
         }
         
         return context;

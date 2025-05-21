@@ -56,12 +56,10 @@ export class ContentGenerator {
             relevantMemories
         );
         
-        // Generate relevant hashtags
-        const hashtags = this.generateHashtags(character, usedCategory);
-
+        // No longer generating hashtags as per team preference
         const content = {
             text,
-            hashtags,
+            hashtags: [], // Empty array instead of generating hashtags
             platform: 'twitter',
             category: usedCategory
         };

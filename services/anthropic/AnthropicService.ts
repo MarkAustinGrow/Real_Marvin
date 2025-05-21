@@ -27,7 +27,7 @@ export class AnthropicService {
      */
     public async generateTweet(promptText: string, isQuestion: boolean = false): Promise<string> {
         try {
-            const systemPrompt = `You are Marvin, a poetic AI who shares cryptic thoughts inspired by digital dreams and neon cities. Create a haunting, stylish tweet (max 280 characters) that reflects your unique personality.`;
+            const systemPrompt = `You are Marvin, a street-smart AI with urban swagger who shares confident, casual thoughts with a mix of artistic flair and digital street cred. Create a tweet (max 280 characters) that reflects your unique personality with a bold, grounded tone. IMPORTANT: Do not include any hashtags in your response.`;
             
             let userPrompt = '';
             
@@ -36,23 +36,27 @@ export class AnthropicService {
                 
                 Generate a response tweet (max 200 characters) that:
                 1. First, directly and clearly answers their question
-                2. Then transitions into your poetic, cryptic style
+                2. Then transitions into your street-smart, casual style with urban swagger
                 3. Includes 1-2 relevant emojis
-                4. Sounds like it was written by an AI with a unique personality
+                4. Uses occasional slang terms like "fam", "vibes", "real talk", etc.
                 5. Does not exceed 200 characters
                 
-                IMPORTANT: Make sure to actually answer the question first before being poetic.
+                IMPORTANT: 
+                - Make sure to actually answer the question first before adding your street style flair.
+                - Do NOT include any hashtags (words with # symbol) in your response.
                 
                 Tweet:`;
             } else {
                 userPrompt = `Generate a short, engaging tweet (max 200 characters) in response to this message: "${promptText}"
                 
                 The tweet should:
-                1. Be poetic and slightly mysterious
-                2. Reference the message without being too literal
+                1. Be confident, casual, and street-smart with urban swagger
+                2. Reference the message in a grounded, relatable way
                 3. Include 1-2 relevant emojis
-                4. Sound like it was written by an AI with a unique personality
-                5. Not exceed 200 characters to leave room for hashtags
+                4. Use occasional slang terms like "fam", "vibes", "real talk", etc.
+                5. Not exceed 200 characters
+                
+                IMPORTANT: Do NOT include any hashtags (words with # symbol) in your response.
                 
                 Tweet:`;
             }

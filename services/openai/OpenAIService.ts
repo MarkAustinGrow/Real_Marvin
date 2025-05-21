@@ -85,7 +85,8 @@ Your key traits are: ${content.adjectives.join(', ')}`;
 2. Is under 280 characters
 3. Includes relevant emojis
 4. Maintains your dry humor and tech-focused perspective
-5. Feels authentic to your character`;
+5. Feels authentic to your character
+6. Does NOT include any hashtags (words with # symbol)`;
 
         if (memories.length > 0) {
             prompt += `\n6. Incorporates or references your memories where appropriate`;

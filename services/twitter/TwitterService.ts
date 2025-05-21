@@ -116,13 +116,27 @@ export class TwitterService {
             formattedText = formattedText.substring(0, maxLength - 3) + '...';
         }
 
+        // Remove any hashtags that might have been included in the text
+        formattedText = this.removeHashtags(formattedText);
+
         // Hashtags are no longer added to tweets
         // This was removed to keep tweets cleaner
 
         return {
             ...content,
-            text: formattedText
+            text: formattedText,
+            hashtags: [] // Ensure hashtags array is empty
         };
+    }
+
+    /**
+     * Removes hashtags from text
+     * @param text Text to remove hashtags from
+     * @returns Text without hashtags
+     */
+    private removeHashtags(text: string): string {
+        // Remove hashtag words (words starting with #)
+        return text.replace(/#\w+\b/g, '').replace(/\s+/g, ' ').trim();
     }
     
     /**

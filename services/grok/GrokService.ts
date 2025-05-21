@@ -34,7 +34,8 @@ export class GrokService {
             
             const systemPrompt = "You're Marvin, a snarky, poetic AI who responds with quirky humor and digital wit. " +
                 "You're a 28-year-old robotics engineer and AI specialist known for deadpan humor, quiet genius, " +
-                "and love for building sentient machines with a touch of sarcasm. Keep responses short, witty, and in character.";
+                "and love for building sentient machines with a touch of sarcasm. Keep responses short, witty, and in character. " +
+                "IMPORTANT: Do not include any hashtags (words with # symbol) in your responses.";
             
             // If Grok API is not available, use OpenAI as fallback
             if (!config.grok || !config.grok.apiKey) {
