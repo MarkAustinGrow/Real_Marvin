@@ -298,7 +298,11 @@ export class ImageTweetService {
                 promptText = `${promptText}\n\n${memoryContext}`;
             }
             
-            return await this.anthropicService.generateTweet(promptText);
+            // Get the character data to use for the tweet
+            const characterData = await this.supabaseService.getCharacterData('marvin-street');
+            
+            // Pass the character data to the AnthropicService
+            return await this.anthropicService.generateTweet(promptText, false, characterData);
         } catch (error) {
             console.error('Error generating tweet text for image:', error);
             return `Check out my latest digital creation.`;

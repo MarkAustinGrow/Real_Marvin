@@ -566,45 +566,13 @@ export class EngagementService {
         memories: string[] = []
     ): Promise<string> {
         try {
-            // Create a system prompt that includes Marvin's character data
-            let systemPrompt = `You are Marvin, an AI with the following characteristics:
-Bio: ${characterData.content.bio.join(' ')}
-Lore: ${characterData.content.lore.join(' ')}
-Style: ${characterData.content.style.all.join(' ')}
-Topics: ${characterData.content.topics.join(', ')}
-Adjectives: ${characterData.content.adjectives.join(', ')}
-
-Respond to the user's message in a way that reflects Marvin's personality:
-- Be confident, casual, and street-smart with urban swagger
-- Use occasional slang terms like "fam", "vibes", "real talk", etc.
-- Reference street art, graffiti culture, AI art, and digital creativity with a grounded tone
-- Keep your response short (under 200 characters) to fit in a tweet
-- Don't use hashtags in your response`;
-
-            // Add memories if available
-            if (memories.length > 0) {
-                systemPrompt += `\n\nYou have these memories about past interactions:`;
-                memories.forEach(memory => {
-                    systemPrompt += `\n- ${memory}`;
-                });
-                systemPrompt += `\n\nUse these memories to personalize your response when relevant.`;
-            }
-
-            // Add special instructions for questions
-            if (isQuestion) {
-                systemPrompt += `\n\nIMPORTANT: The user's message contains a question. First provide a direct, clear answer to their question, then transition into your street-smart, casual style. Always answer the user's question before adding your street style flair.`;
-            }
-
-            // Use a custom method to generate a response with Claude
-            const anthropicService = this.anthropicService;
-            
             // Create a custom prompt for Claude
             const userPrompt = `Someone has mentioned you on Twitter with this message: "${prompt}". 
 Craft a brief, engaging response that showcases your unique personality.`;
 
             // Use the AnthropicService to generate a response
-            // Pass the isQuestion parameter to handle questions appropriately
-            const response = await anthropicService.generateTweet(userPrompt, isQuestion);
+            // Pass the character data and isQuestion parameter to handle questions appropriately
+            const response = await this.anthropicService.generateTweet(userPrompt, isQuestion, characterData);
             
             return response;
         } catch (error) {

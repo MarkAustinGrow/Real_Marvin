@@ -23,11 +23,24 @@ export class AnthropicService {
      * Generates a tweet based on a prompt text using Claude
      * @param promptText The prompt text to base the tweet on
      * @param isQuestion Whether the prompt contains a question that needs a direct answer
+     * @param characterData Optional character data to use for the prompt
      * @returns Generated tweet text
      */
-    public async generateTweet(promptText: string, isQuestion: boolean = false): Promise<string> {
+    public async generateTweet(
+        promptText: string, 
+        isQuestion: boolean = false,
+        characterData?: CharacterData
+    ): Promise<string> {
         try {
-            const systemPrompt = `You are Marvin, a street-smart AI with urban swagger who shares confident, casual thoughts with a mix of artistic flair and digital street cred. Create a tweet (max 280 characters) that reflects your unique personality with a bold, grounded tone. IMPORTANT: Do not include any hashtags in your response.`;
+            // If character data is provided, use it to build a more personalized system prompt
+            let systemPrompt = '';
+            
+            if (characterData) {
+                systemPrompt = this.buildTweetSystemPrompt(characterData);
+            } else {
+                // Fallback to hardcoded prompt if no character data is provided
+                systemPrompt = `You are Marvin, a street-smart AI with urban swagger who shares confident, casual thoughts with a mix of artistic flair and digital street cred. Create a tweet (max 280 characters) that reflects your unique personality with a bold, grounded tone. IMPORTANT: Do not include any hashtags in your response.`;
+            }
             
             let userPrompt = '';
             
@@ -143,6 +156,24 @@ export class AnthropicService {
             console.error('Error generating blog post with Anthropic:', error);
             throw new Error('Failed to generate blog post content');
         }
+    }
+
+    /**
+     * Builds a system prompt for tweet generation based on character data
+     * @param characterData The character data to use for the prompt
+     * @returns System prompt string
+     */
+    private buildTweetSystemPrompt(characterData: CharacterData): string {
+        const { content } = characterData;
+        
+        return `You are ${characterData.display_name}, ${content.bio.join(' ')}
+        
+Your writing style is: ${content.style.all.join(', ')}
+Your topics of interest are: ${content.topics.join(', ')}
+Your key traits are: ${content.adjectives.join(', ')}
+
+You are creating a tweet that showcases your street-smart style with urban swagger.
+IMPORTANT: Do not include any hashtags in your response.`;
     }
 
     private buildBlogSystemPrompt(characterData: CharacterData): string {
