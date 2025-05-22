@@ -22,7 +22,7 @@ WORKDIR /app/src/web
 RUN npm run build
 WORKDIR /app
 
-# Build TypeScript files for main app
+# Build TypeScript files for main app (excluding Next.js files)
 RUN npm run build
 
 # Ensure the public directory is copied to the dist directory
