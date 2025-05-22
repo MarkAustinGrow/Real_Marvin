@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import basicAuth from 'express-basic-auth';
 import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
@@ -18,24 +19,49 @@ export function startWebServer() {
     realm: 'Marvin Admin Interface'
   } as any));
   
-  // Path to the public directory
-  // In development, it's in src/public
-  // In production (Docker), it's copied to dist/src/public
-  const publicDir = path.resolve(__dirname, 'public');
-  console.log('Public directory path:', publicDir);
+  // Determine which UI to serve
+  const nextJsDir = path.resolve(__dirname, 'web-ui');
+  const legacyPublicDir = path.resolve(__dirname, 'public');
   
-  // Serve static files
-  app.use(express.static(publicDir));
+  // Check if Next.js build exists
+  const hasNextJsBuild = fs.existsSync(path.join(nextJsDir, '.next'));
   
-  // Fallback for serving index.html
-  app.use((req: Request, res: Response, next: express.NextFunction) => {
-    if (req.path === '/') {
-      console.log('Serving index.html from:', path.join(publicDir, 'index.html'));
-      res.sendFile(path.join(publicDir, 'index.html'));
-    } else {
-      next();
-    }
-  });
+  console.log('Next.js build directory exists:', hasNextJsBuild);
+  console.log('Next.js directory path:', nextJsDir);
+  console.log('Legacy public directory path:', legacyPublicDir);
+  
+  if (hasNextJsBuild) {
+    // Serve Next.js static files
+    app.use('/_next', express.static(path.join(nextJsDir, '.next')));
+    app.use(express.static(path.join(nextJsDir, 'public')));
+    
+    // Fallback for serving Next.js HTML
+    app.use((req: Request, res: Response, next: express.NextFunction) => {
+      if (req.path === '/' || !req.path.startsWith('/api')) {
+        console.log('Serving Next.js app for path:', req.path);
+        // Serve the Next.js HTML file
+        res.sendFile(path.join(nextJsDir, '.next', 'server', 'pages', req.path === '/' ? 'index.html' : `${req.path}.html`));
+      } else {
+        next();
+      }
+    });
+  } else {
+    // Fallback to legacy UI
+    console.log('Next.js build not found, using legacy UI');
+    
+    // Serve static files from legacy public directory
+    app.use(express.static(legacyPublicDir));
+    
+    // Fallback for serving index.html
+    app.use((req: Request, res: Response, next: express.NextFunction) => {
+      if (req.path === '/') {
+        console.log('Serving legacy index.html from:', path.join(legacyPublicDir, 'index.html'));
+        res.sendFile(path.join(legacyPublicDir, 'index.html'));
+      } else {
+        next();
+      }
+    });
+  }
   app.use(express.json());
   
   // API endpoints
@@ -297,7 +323,11 @@ export function startWebServer() {
   
   // Main HTML page
   app.get('/', (req: Request, res: Response) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    if (hasNextJsBuild) {
+      res.sendFile(path.join(nextJsDir, '.next', 'server', 'pages', 'index.html'));
+    } else {
+      res.sendFile(path.join(legacyPublicDir, 'index.html'));
+    }
   });
   
   // Start the server
