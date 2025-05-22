@@ -81,16 +81,15 @@ Your key traits are: ${content.adjectives.join(', ')}`;
         }
 
         prompt += `\n\nGenerate a single tweet about ${category} that:
-1. IMPORTANT: DO NOT include any hashtags or words with # symbols. Twitter/X no longer uses hashtags effectively.
+1. IMPORTANT: DO NOT include any hashtags, words with # symbols, or emojis in your response.
 2. Reflects your personality and style
-3. Is under 280 characters
-4. Includes relevant emojis
-5. Maintains your dry humor and tech-focused perspective
-6. Feels authentic to your character`;
+3. Is under 280 characters for regular tweets, but under 100 characters for replies
+4. Maintains your dry humor and tech-focused perspective
+5. Feels authentic to your character`;
 
         prompt += `\n\nExamples:
-BAD: "Just created some cool art #DigitalArt #Creative"
-GOOD: "Just created some cool art that's pushing boundaries in the digital space 🎨"`;
+BAD: "Just created some cool art #DigitalArt #Creative 🎨"
+GOOD: "Just created some cool art that's pushing boundaries in the digital space"`;
 
         if (memories.length > 0) {
             prompt += `\n6. Incorporates or references your memories where appropriate`;

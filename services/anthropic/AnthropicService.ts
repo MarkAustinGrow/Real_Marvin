@@ -44,24 +44,22 @@ export class AnthropicService {
 Generate a response tweet that:
 1. First, directly and clearly answers their question
 2. Then transitions into your street-smart style with urban swagger
-3. Includes 1-2 relevant emojis
-4. Uses occasional slang terms like "fam", "vibes", "real talk", etc.
-5. Does not exceed 200 characters
+3. Uses occasional slang terms like "fam", "vibes", "real talk", etc.
+4. Does not exceed 100 characters
 
 IMPORTANT: 
 - Make sure to actually answer the question first before adding your street style flair.
-- Do NOT include any hashtags (words with # symbol) in your response.`;
+- Do NOT include any hashtags (words with # symbol) or emojis in your response.`;
             } else {
                 context = `Generate a short, engaging tweet in response to this message: "${promptText}"
                 
 The tweet should:
 1. Be confident, casual, and street-smart with urban swagger
 2. Reference the message in a grounded, relatable way
-3. Include 1-2 relevant emojis
-4. Use occasional slang terms like "fam", "vibes", "real talk", etc.
-5. Not exceed 200 characters
+3. Use occasional slang terms like "fam", "vibes", "real talk", etc.
+4. Not exceed 100 characters
 
-IMPORTANT: Do NOT include any hashtags (words with # symbol) in your response.`;
+IMPORTANT: Do NOT include any hashtags (words with # symbol) or emojis in your response.`;
             }
             
             // If no character data is provided, try to get it
