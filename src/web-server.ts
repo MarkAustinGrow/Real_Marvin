@@ -6,6 +6,7 @@ import { ContentGenerator } from '../services/content/ContentGenerator';
 import { EngagementService } from '../services/engagement/EngagementService';
 import { blogPostScheduler } from './blog-post-scheduler';
 import { SupabaseService } from '../services/supabase/SupabaseService';
+import { BlogPostEnhancer } from './blog-post-enhancer';
 
 export function startWebServer() {
   const app = express();
@@ -83,10 +84,15 @@ export function startWebServer() {
           });
         }
         
+        // Enhance the blog post with missing fields
+        console.log('Enhancing blog post with missing fields...');
+        const enhancer = new BlogPostEnhancer();
+        await enhancer.enhanceBlogPost(data.id);
+        
         // Return success with blog post and ID
         return res.json({
           success: true,
-          message: 'Blog post generated and saved successfully',
+          message: 'Blog post generated, saved, and enhanced successfully',
           blogPost,
           id: data.id,
           status: req.body.status || 'draft'
@@ -265,6 +271,42 @@ export function startWebServer() {
       nextScheduledTweet: nextTweetTime.toISOString(),
       timeUntilNextTweet: nextTweetTime.getTime() - now.getTime()
     });
+  });
+  
+  // Blog post enhancement endpoint
+  app.post('/api/enhance-blog-posts', async (req: Request, res: Response) => {
+    try {
+      const postId = req.body.postId; // Optional post ID to enhance a specific post
+      const enhancer = new BlogPostEnhancer();
+      
+      if (postId) {
+        // Enhance a specific blog post
+        console.log(`Enhancing blog post with ID: ${postId}`);
+        const success = await enhancer.enhanceBlogPost(postId);
+        
+        return res.json({
+          success,
+          message: success 
+            ? `Successfully enhanced blog post with ID: ${postId}` 
+            : `Failed to enhance blog post with ID: ${postId}`
+        });
+      } else {
+        // Enhance all blog posts that need enhancement
+        console.log('Enhancing all blog posts that need enhancement');
+        await enhancer.processAllPosts();
+        
+        return res.json({
+          success: true,
+          message: 'Blog post enhancement process completed'
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error in enhance-blog-posts endpoint:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
   });
   
   // Engagement rules endpoints
