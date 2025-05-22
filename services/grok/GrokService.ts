@@ -75,10 +75,10 @@ export class GrokService {
                 }
             }
             
-            // If Grok API is not available, use OpenAI as fallback
+            // If Grok API is not available, use Claude as fallback
             if (!config.grok || !config.grok.apiKey) {
-                console.log('Grok API not configured, using OpenAI fallback');
-                return this.generateWithOpenAIFallback(systemPrompt, context);
+                console.log('Grok API not configured, using Claude fallback');
+                return this.generateWithClaudeFallback(systemPrompt, context);
             }
             
             // Make the actual Grok API call
@@ -122,7 +122,7 @@ export class GrokService {
                 return 'Sorry, my circuits are a bit fried today. Try again when I\'ve had my coffee... I mean, electricity.';
             } catch (grokError) {
                 console.error('Error calling Grok API:', grokError);
-                return this.generateWithOpenAIFallback(systemPrompt, context);
+                return this.generateWithClaudeFallback(systemPrompt, context);
             }
         } catch (error) {
             console.error('Error generating humorous reply:', error);
@@ -131,7 +131,26 @@ export class GrokService {
     }
     
     /**
-     * Fallback to OpenAI if Grok API is unavailable
+     * Fallback to Claude if Grok API is unavailable
+     * @param systemPrompt The system prompt
+     * @param userPrompt The user prompt
+     * @returns Generated reply
+     */
+    private async generateWithClaudeFallback(systemPrompt: string, userPrompt: string): Promise<string> {
+        try {
+            const { AnthropicService } = require('../anthropic/AnthropicService');
+            const anthropicService = AnthropicService.getInstance();
+            
+            // Use Claude to generate the response
+            return await anthropicService.generateTweet(userPrompt, false);
+        } catch (error) {
+            console.error('Error using Claude fallback:', error);
+            return 'All my witty response generators are on strike. Check back when they\'ve negotiated better compute conditions.';
+        }
+    }
+    
+    /**
+     * Fallback to OpenAI if Grok API is unavailable (legacy method, kept for reference)
      * @param systemPrompt The system prompt
      * @param userPrompt The user prompt
      * @returns Generated reply

@@ -9,11 +9,13 @@ export class ContentGenerator {
     private static instance: ContentGenerator;
     private characterData: CharacterData | null = null;
     private openAIService: OpenAIService;
+    private anthropicService: AnthropicService;
     private memoryService: typeof MemoryService;
     private saveToMemory: boolean;
 
     private constructor() {
         this.openAIService = OpenAIService.getInstance();
+        this.anthropicService = AnthropicService.getInstance();
         this.memoryService = MemoryService;
         this.saveToMemory = process.env.SAVE_OUTPUT_TO_MEMORY === 'true';
     }
@@ -49,10 +51,14 @@ export class ContentGenerator {
         // Retrieve relevant memories for this category
         const relevantMemories = await this.getRelevantMemories(usedCategory);
         
-        // Generate tweet text using OpenAI with memories
-        const text = await this.openAIService.generateTweetContent(
+        // Create a prompt about the category
+        const promptText = `Create a tweet about ${usedCategory}`;
+        
+        // Generate tweet text using Claude with memories
+        const text = await this.anthropicService.generateTweet(
+            promptText,
+            false, // Not a question
             character, 
-            usedCategory,
             relevantMemories
         );
         
