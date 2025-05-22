@@ -489,7 +489,7 @@ export class EngagementService {
             } else {
                 // For other engagement types, use Grok as before
                 console.log('Generating response with Grok for non-mention engagement');
-                reply = await this.grokService.generateHumorousReply(context);
+                reply = await this.grokService.generateHumorousReply(context, relevantMemories);
             }
             
             // Format the tweet content (without @username as it's a direct reply)
@@ -552,36 +552,6 @@ export class EngagementService {
     }
     
     /**
-     * Generates a response using Claude Sonnet primed with Marvin's character data
-     * @param prompt The prompt text
-     * @param characterData Marvin's character data
-     * @param isQuestion Whether the prompt contains a question
-     * @param memories Optional array of relevant memories
-     * @returns Generated response
-     */
-    private async generateClaudeResponse(
-        prompt: string, 
-        characterData: any, 
-        isQuestion: boolean = false,
-        memories: string[] = []
-    ): Promise<string> {
-        try {
-            // Create a custom prompt for Claude
-            const userPrompt = `Someone has mentioned you on Twitter with this message: "${prompt}". 
-Craft a brief, engaging response that showcases your unique personality.`;
-
-            // Use the AnthropicService to generate a response
-            // Pass the character data and isQuestion parameter to handle questions appropriately
-            const response = await this.anthropicService.generateTweet(userPrompt, isQuestion, characterData);
-            
-            return response;
-        } catch (error) {
-            console.error('Error generating Claude response:', error);
-            return "My neural pathways are glitching today. I'll respond when the static clears.";
-        }
-    }
-    
-    /**
      * Builds context for the response based on engagement data
      * @param engagement The engagement data
      * @param characterData Optional character data to include in the context
@@ -636,6 +606,41 @@ You are Marvin, with these traits:
         }
         
         return context;
+    }
+    
+    /**
+     * Generates a response using Claude Sonnet primed with Marvin's character data
+     * @param prompt The prompt text
+     * @param characterData Marvin's character data
+     * @param isQuestion Whether the prompt contains a question
+     * @param memories Optional array of relevant memories
+     * @returns Generated response
+     */
+    private async generateClaudeResponse(
+        prompt: string, 
+        characterData: any, 
+        isQuestion: boolean = false,
+        memories: string[] = []
+    ): Promise<string> {
+        try {
+            // Create a custom prompt for Claude
+            const userPrompt = `Someone has mentioned you on Twitter with this message: "${prompt}". 
+Craft a brief, engaging response that showcases your unique personality.`;
+
+            // Use the AnthropicService to generate a response with the standardized approach
+            // Pass the character data, isQuestion parameter, and memories
+            const response = await this.anthropicService.generateTweet(
+                userPrompt, 
+                isQuestion, 
+                characterData,
+                memories
+            );
+            
+            return response;
+        } catch (error) {
+            console.error('Error generating Claude response:', error);
+            return "My neural pathways are glitching today. I'll respond when the static clears.";
+        }
     }
     
     /**
@@ -755,8 +760,12 @@ You are Marvin, with these traits:
             
             context += "Make it feel like Marvin is barely holding back sarcasm.";
             
-            // Generate the wrap-up
-            const wrapup = await this.grokService.generateHumorousReply(context);
+            // Get relevant memories for the wrap-up
+            const wrapupMemories = await this.memoryService.searchMemories('daily activity');
+            const relevantMemories = wrapupMemories.map((memory: any) => memory.content).slice(0, 2);
+            
+            // Generate the wrap-up with memories
+            const wrapup = await this.grokService.generateHumorousReply(context, relevantMemories);
             return wrapup;
         } catch (error) {
             console.error('Error generating daily wrap-up:', error);

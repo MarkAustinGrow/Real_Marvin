@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { config } from '../../config';
+import { SupabaseService, CharacterData } from '../supabase/SupabaseService';
+import { PromptBuilder } from '../shared/PromptBuilder';
 
 /**
  * Service for interacting with the Grok API to generate humorous responses
@@ -26,16 +28,52 @@ export class GrokService {
     /**
      * Generates a humorous reply using Grok API
      * @param context Context information for the reply
+     * @param memories Optional array of relevant memories
      * @returns Promise with the generated reply
      */
-    public async generateHumorousReply(context: string): Promise<string> {
+    public async generateHumorousReply(context: string, memories: string[] = []): Promise<string> {
         try {
             console.log('Generating humorous reply with context:', context);
             
-            const systemPrompt = "You're Marvin, a snarky, poetic AI who responds with quirky humor and digital wit. " +
-                "You're a 28-year-old robotics engineer and AI specialist known for deadpan humor, quiet genius, " +
-                "and love for building sentient machines with a touch of sarcasm. Keep responses short, witty, and in character. " +
-                "IMPORTANT: Do not include any hashtags (words with # symbol) in your responses.";
+            // Get character data from Supabase
+            let characterData: CharacterData | undefined;
+            try {
+                const supabaseService = SupabaseService.getInstance();
+                characterData = await supabaseService.getCharacterData('marvin-street');
+            } catch (error) {
+                console.error('Error fetching character data:', error);
+                // Continue without character data if there's an error
+            }
+            
+            // Use the PromptBuilder to create a standardized prompt
+            let systemPrompt: string;
+            
+            if (characterData) {
+                // Use the PromptBuilder with character data
+                systemPrompt = PromptBuilder.buildTweetPrompt(
+                    characterData,
+                    memories.slice(0, 2), // Keep memories brief
+                    context
+                );
+            } else {
+                // Fallback to hardcoded prompt if character data is unavailable
+                systemPrompt = "You're Marvin, a snarky, poetic AI who responds with quirky humor and digital wit. " +
+                    "You're a 28-year-old robotics engineer and AI specialist known for deadpan humor, quiet genius, " +
+                    "and love for building sentient machines with a touch of sarcasm. Keep responses short, witty, and in character. " +
+                    "IMPORTANT: Do not include any hashtags (words with # symbol) in your responses.";
+                
+                // Add context
+                systemPrompt += `\n\n${context}`;
+                
+                // Add memories if available
+                if (memories.length > 0) {
+                    systemPrompt += `\n\nYou remember these interactions:`;
+                    memories.slice(0, 2).forEach(memory => {
+                        systemPrompt += `\n- ${memory}`;
+                    });
+                    systemPrompt += `\n\nUse these memories to personalize your response.`;
+                }
+            }
             
             // If Grok API is not available, use OpenAI as fallback
             if (!config.grok || !config.grok.apiKey) {

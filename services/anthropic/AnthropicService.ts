@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { config } from '../../config';
 import { CharacterData } from '../supabase/SupabaseService';
+import { PromptBuilder } from '../shared/PromptBuilder';
 
 export class AnthropicService {
     private static instance: AnthropicService;
@@ -24,55 +25,89 @@ export class AnthropicService {
      * @param promptText The prompt text to base the tweet on
      * @param isQuestion Whether the prompt contains a question that needs a direct answer
      * @param characterData Optional character data to use for the prompt
+     * @param memories Optional array of relevant memories to include in the prompt
      * @returns Generated tweet text
      */
     public async generateTweet(
         promptText: string, 
         isQuestion: boolean = false,
-        characterData?: CharacterData
+        characterData?: CharacterData,
+        memories: string[] = []
     ): Promise<string> {
         try {
-            // If character data is provided, use it to build a more personalized system prompt
-            let systemPrompt = '';
-            
-            if (characterData) {
-                systemPrompt = this.buildTweetSystemPrompt(characterData);
-            } else {
-                // Fallback to hardcoded prompt if no character data is provided
-                systemPrompt = `You are Marvin, a street-smart AI with urban swagger who shares confident, casual thoughts with a mix of artistic flair and digital street cred. Create a tweet (max 280 characters) that reflects your unique personality with a bold, grounded tone. IMPORTANT: Do not include any hashtags in your response.`;
-            }
-            
-            let userPrompt = '';
+            // Build context for engagement responses
+            let context = '';
             
             if (isQuestion) {
-                userPrompt = `Someone has asked you this question: "${promptText}"
+                context = `Someone has asked you this question: "${promptText}"
                 
-                Generate a response tweet (max 200 characters) that:
-                1. First, directly and clearly answers their question
-                2. Then transitions into your street-smart, casual style with urban swagger
-                3. Includes 1-2 relevant emojis
-                4. Uses occasional slang terms like "fam", "vibes", "real talk", etc.
-                5. Does not exceed 200 characters
-                
-                IMPORTANT: 
-                - Make sure to actually answer the question first before adding your street style flair.
-                - Do NOT include any hashtags (words with # symbol) in your response.
-                
-                Tweet:`;
+Generate a response tweet that:
+1. First, directly and clearly answers their question
+2. Then transitions into your street-smart style with urban swagger
+3. Includes 1-2 relevant emojis
+4. Uses occasional slang terms like "fam", "vibes", "real talk", etc.
+5. Does not exceed 200 characters
+
+IMPORTANT: 
+- Make sure to actually answer the question first before adding your street style flair.
+- Do NOT include any hashtags (words with # symbol) in your response.`;
             } else {
-                userPrompt = `Generate a short, engaging tweet (max 200 characters) in response to this message: "${promptText}"
+                context = `Generate a short, engaging tweet in response to this message: "${promptText}"
                 
-                The tweet should:
-                1. Be confident, casual, and street-smart with urban swagger
-                2. Reference the message in a grounded, relatable way
-                3. Include 1-2 relevant emojis
-                4. Use occasional slang terms like "fam", "vibes", "real talk", etc.
-                5. Not exceed 200 characters
-                
-                IMPORTANT: Do NOT include any hashtags (words with # symbol) in your response.
-                
-                Tweet:`;
+The tweet should:
+1. Be confident, casual, and street-smart with urban swagger
+2. Reference the message in a grounded, relatable way
+3. Include 1-2 relevant emojis
+4. Use occasional slang terms like "fam", "vibes", "real talk", etc.
+5. Not exceed 200 characters
+
+IMPORTANT: Do NOT include any hashtags (words with # symbol) in your response.`;
             }
+            
+            // If no character data is provided, try to get it
+            if (!characterData) {
+                try {
+                    const SupabaseService = require('../supabase/SupabaseService').SupabaseService;
+                    const supabaseService = SupabaseService.getInstance();
+                    characterData = await supabaseService.getCharacterData('marvin-street');
+                } catch (error) {
+                    console.error('Error fetching character data:', error);
+                    // Fallback to using the buildTweetSystemPrompt method
+                    const systemPrompt = `You are Marvin, a street-smart AI with urban swagger who shares confident, casual thoughts with a mix of artistic flair and digital street cred. Create a tweet (max 280 characters) that reflects your unique personality with a bold, grounded tone. IMPORTANT: Do not include any hashtags in your response.`;
+                    
+                    // Continue with the rest of the method using the fallback prompt
+                    const response = await axios.post(
+                        `${this.baseUrl}/messages`,
+                        {
+                            model: this.model,
+                            system: systemPrompt,
+                            messages: [
+                                { role: 'user', content: context }
+                            ],
+                            max_tokens: 100,
+                            temperature: 0.7
+                        },
+                        {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-api-key': this.apiKey,
+                                'anthropic-version': '2023-06-01'
+                            }
+                        }
+                    );
+                    
+                    const generatedText = response.data.content[0].text.trim();
+                    console.log('Generated tweet from Anthropic Claude (fallback):', generatedText);
+                    return generatedText;
+                }
+            }
+            
+            // Use the shared prompt builder with non-null assertion for characterData
+            const systemPrompt = PromptBuilder.buildTweetPrompt(
+                characterData!,
+                memories,
+                context
+            );
 
             const response = await axios.post(
                 `${this.baseUrl}/messages`,
@@ -80,7 +115,7 @@ export class AnthropicService {
                     model: this.model,
                     system: systemPrompt,
                     messages: [
-                        { role: 'user', content: userPrompt }
+                        { role: 'user', content: promptText }
                     ],
                     max_tokens: 100,
                     temperature: 0.7
