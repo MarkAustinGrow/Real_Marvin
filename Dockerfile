@@ -32,7 +32,8 @@ RUN cp -r src/public/* dist/src/public/
 # Copy Next.js build output to a location that can be served
 RUN mkdir -p dist/src/web-ui
 RUN cp -r src/web/.next dist/src/web-ui/
-RUN cp -r src/web/public dist/src/web-ui/
+RUN mkdir -p dist/src/web-ui/public
+RUN if [ -d "src/web/public" ] && [ "$(ls -A src/web/public)" ]; then cp -r src/web/public/* dist/src/web-ui/public/; fi
 
 # Install marked package for markdown processing (for blog post scheduler)
 RUN npm install marked
