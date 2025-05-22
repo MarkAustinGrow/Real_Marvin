@@ -23,8 +23,8 @@ class EngagementScheduler {
     public start(): void {
         console.log('Starting engagement scheduler');
         
-        // Schedule engagement monitoring every 10 minutes
-        this.scheduleEngagementMonitoring(10);
+        // Schedule engagement monitoring every 30 minutes (increased from 10 to reduce rate limit issues)
+        this.scheduleEngagementMonitoring(30);
         
         // Schedule daily wrap-up at 9:00 PM
         // this.scheduleDailyWrapup(21, 0);  // Commented out to stop the 9 PM Grok posts
@@ -96,6 +96,13 @@ class EngagementScheduler {
         try {
             console.log('Running scheduled engagement monitoring');
             
+            // Check if we're rate limited
+            if (this.twitterService.isRateLimited) {
+                const resetTime = this.twitterService.rateLimitResetTime;
+                console.log(`Skipping engagement monitoring due to rate limit. Will reset at ${resetTime?.toLocaleString() || 'unknown time'}`);
+                return;
+            }
+            
             // Get recent tweets from our account
             // For now, we'll just monitor mentions
             await this.twitterService.monitorEngagements();
@@ -113,6 +120,13 @@ class EngagementScheduler {
         try {
             console.log('Generating daily engagement wrap-up');
             
+            // Check if we're rate limited
+            if (this.twitterService.isRateLimited) {
+                const resetTime = this.twitterService.rateLimitResetTime;
+                console.log(`Skipping daily wrap-up due to rate limit. Will reset at ${resetTime?.toLocaleString() || 'unknown time'}`);
+                return;
+            }
+            
             // Generate the wrap-up
             const wrapupText = await this.engagementService.generateDailyWrapup();
             
@@ -120,15 +134,17 @@ class EngagementScheduler {
             if (wrapupText && !wrapupText.includes('No engagements today')) {
                 console.log('Posting daily wrap-up:', wrapupText);
                 
-                // Create the tweet content
+                // Create the tweet content (without hashtags)
                 const tweetContent: PostContent = {
                     text: wrapupText,
-                    hashtags: ['MarvinDigitalDebrief', 'AILife'],
                     platform: 'Twitter'
                 };
                 
+                // Format the content (this will remove any hashtags)
+                const formattedContent = this.twitterService.formatContent(tweetContent);
+                
                 // Post the tweet
-                const result = await this.twitterService.postTweet(tweetContent);
+                const result = await this.twitterService.postTweet(formattedContent);
                 
                 if (result.success) {
                     console.log('Daily wrap-up posted successfully');

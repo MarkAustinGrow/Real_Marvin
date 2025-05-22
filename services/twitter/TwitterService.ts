@@ -3,9 +3,53 @@ import { config } from '../../config';
 import { PostContent } from '../../types';
 import { EngagementService, EngagementMetric } from '../engagement/EngagementService';
 
+/**
+ * Token bucket for rate limiting
+ * Implements a token bucket algorithm for API rate limiting
+ */
+class TokenBucket {
+  private tokens: number;
+  private lastRefill: number;
+  private maxTokens: number;
+  private refillRate: number; // tokens per millisecond
+  
+  constructor(maxTokens: number, refillRatePerDay: number) {
+    this.maxTokens = maxTokens;
+    this.tokens = maxTokens;
+    this.lastRefill = Date.now();
+    this.refillRate = refillRatePerDay / (24 * 60 * 60 * 1000);
+  }
+  
+  async consume(tokens: number = 1): Promise<boolean> {
+    this.refill();
+    
+    if (this.tokens < tokens) {
+      console.log(`Rate limit would be exceeded. Available tokens: ${this.tokens}, requested: ${tokens}`);
+      return false;
+    }
+    
+    this.tokens -= tokens;
+    return true;
+  }
+  
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastRefill;
+    const newTokens = elapsed * this.refillRate;
+    
+    this.tokens = Math.min(this.maxTokens, this.tokens + newTokens);
+    this.lastRefill = now;
+  }
+}
+
 export class TwitterService {
     private client: TwitterApi;
     private static instance: TwitterService;
+    
+    // Rate limiting properties
+    public isRateLimited: boolean = false;
+    public rateLimitResetTime: Date | null = null;
+    private tokenBucket: TokenBucket;
 
     private constructor() {
         this.client = new TwitterApi({
@@ -14,6 +58,9 @@ export class TwitterService {
             accessToken: config.twitter.accessToken,
             accessSecret: config.twitter.accessTokenSecret,
         });
+        
+        // Initialize the token bucket with Twitter's daily rate limit (250 requests per day)
+        this.tokenBucket = new TokenBucket(250, 250);
     }
 
     public static getInstance(): TwitterService {
@@ -135,8 +182,15 @@ export class TwitterService {
      * @returns Text without hashtags
      */
     private removeHashtags(text: string): string {
-        // Remove hashtag words (words starting with #)
-        return text.replace(/#\w+\b/g, '').replace(/\s+/g, ' ').trim();
+        // More comprehensive regex to catch hashtags in various formats
+        // This will match:
+        // - Standard hashtags (#word)
+        // - Hashtags with numbers (#word123)
+        // - Hashtags with underscores (#word_word)
+        // - Hashtags with hyphens (#word-word)
+        return text.replace(/#[\w\-_]+\b/g, '')
+            .replace(/\s+/g, ' ') // Remove extra spaces
+            .trim();
     }
     
     /**
@@ -248,8 +302,14 @@ export class TwitterService {
                     parent_tweet_id: parentTweetId
                 };
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching engagements:', error);
+            
+            // Handle rate limit errors
+            if (error.code === 429) {
+                await this.handleRateLimit(error);
+            }
+            
             return [];
         }
     }
@@ -313,12 +373,53 @@ export class TwitterService {
     }
     
     /**
+     * Handles rate limit errors
+     * @param error The error object from the Twitter API
+     */
+    private async handleRateLimit(error: any): Promise<void> {
+        if (error.code === 429) {
+            // Extract reset time from headers
+            const resetTime = error.rateLimit?.reset;
+            if (resetTime) {
+                const resetDate = new Date(resetTime * 1000);
+                const waitTime = resetDate.getTime() - Date.now();
+                
+                console.log(`Rate limit exceeded. Will reset at ${resetDate.toLocaleString()}`);
+                console.log(`Waiting for ${Math.ceil(waitTime / 1000 / 60)} minutes before retrying`);
+                
+                // Store this information for other components to use
+                this.rateLimitResetTime = resetDate;
+                this.isRateLimited = true;
+                
+                // Schedule a job to reset the rate limit flag
+                setTimeout(() => {
+                    this.isRateLimited = false;
+                    console.log('Rate limit reset. Resuming normal operations.');
+                }, waitTime + 1000); // Add 1 second buffer
+            }
+        }
+    }
+    
+    /**
      * Monitors and logs recent engagements
      * @param tweetId Optional tweet ID to monitor
      */
     public async monitorEngagements(tweetId?: string): Promise<void> {
         try {
             console.log('Monitoring engagements');
+            
+            // Check if we're rate limited
+            if (this.isRateLimited) {
+                const resetTime = this.rateLimitResetTime;
+                console.log(`Skipping engagement monitoring due to rate limit. Will reset at ${resetTime?.toLocaleString() || 'unknown time'}`);
+                return;
+            }
+            
+            // Check if we have enough tokens in the bucket
+            if (!(await this.tokenBucket.consume(1))) {
+                console.log('Rate limit would be exceeded based on token bucket. Skipping engagement monitoring.');
+                return;
+            }
             
             // Get the engagement service
             const engagementService = EngagementService.getInstance();
