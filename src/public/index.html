@@ -21,6 +21,7 @@
       border-radius: 15px;
       padding: 20px;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      max-width: 1400px; /* Increased max-width for larger screens */
     }
     .tweet-preview {
       border: 1px solid #ddd;
@@ -28,6 +29,7 @@
       padding: 15px;
       margin-top: 20px;
       background-color: white;
+      height: 100%;
     }
     .status-card {
       margin-bottom: 20px;
@@ -37,10 +39,45 @@
     }
     .card {
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-body {
+      flex: 1 1 auto;
     }
     h1 {
       color: #1DA1F2;
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (min-width: 992px) {
+      .card-deck {
+        display: flex;
+        flex-flow: row wrap;
+        margin-right: -15px;
+        margin-left: -15px;
+      }
+      .card-deck .card {
+        flex: 1 0 0%;
+        margin-right: 15px;
+        margin-left: 15px;
+        margin-bottom: 30px;
+      }
+      .feature-col {
+        margin-bottom: 30px;
+      }
+    }
+    
+    /* Ensure cards in a row have equal height */
+    .row-eq-height {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .row-eq-height > [class*='col-'] {
+      display: flex;
+      flex-direction: column;
     }
   </style>
 </head>
@@ -48,9 +85,9 @@
   <div class="container">
     <h1 class="mb-4">Marvin AI Agent - Admin Interface</h1>
     
-    <div class="row">
-      <div class="col-md-4">
-        <div class="card status-card">
+    <div class="row row-eq-height">
+      <div class="col-lg-3 col-md-4">
+        <div class="card status-card h-100">
           <div class="card-header">Status</div>
           <div class="card-body" id="status-container">
             <p>Loading status...</p>
@@ -255,7 +292,7 @@
         </div>
       </div>
       
-      <div class="col-md-8">
+      <div class="col-lg-9 col-md-8">
         <div class="tweet-preview" id="preview-container">
           <h5>Tweet Preview</h5>
           <p class="text-muted">Generate a preview to see how your tweet will look</p>
