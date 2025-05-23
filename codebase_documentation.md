@@ -366,6 +366,78 @@ The system now prevents infinite self-mention loops:
 - Implemented filtering to ignore self-mentions
 - Prevents the bot from responding to its own tweets that mention itself
 
+### Twitter Reply Improvements
+The system now has improved Twitter replies based on team feedback:
+
+1. **Removed Emojis from Replies**:
+   - All emojis have been removed from Twitter replies
+   - Creates a cleaner, more professional appearance
+   - Consistent with the emoji removal in blog posts
+
+2. **Shortened Responses**:
+   - Maximum character limit reduced from 200 to 100 characters
+   - Creates more concise interactions
+   - Improves readability on mobile devices
+
+3. **Implementation Details**:
+   - Updated AnthropicService.ts to remove instructions to include emojis
+   - Updated PromptBuilder.ts to specify 100 character limit
+   - Updated OpenAIService.ts to maintain consistent style across all models
+   - Applied changes to all types of Twitter interactions (mentions, questions, engagements)
+
+For more details, see `TWITTER_REPLY_IMPROVEMENTS.md`.
+
+### Blog Post Emoji Removal
+The system now ensures that blog posts don't contain any emojis:
+
+1. **Multiple Layers of Protection**:
+   - Explicit instructions in the prompt to Claude to not include emojis
+   - Post-processing regex filtering to remove any emojis that might slip through
+   - Instructions in both system and user prompts for redundancy
+
+2. **Implementation Details**:
+   - Added clear instructions in `buildBlogUserPrompt` method in AnthropicService.ts
+   - Added explicit requirement in the user prompt: "NOT include any emojis or emoticons"
+   - Added the same instruction to the system prompt to reinforce the requirement
+   - Implemented a regex-based emoji removal in the `parseBlogResponse` method
+   - The regex covers all Unicode emoji ranges to ensure comprehensive removal
+   - Applied emoji cleaning to title, content, and excerpt fields
+
+3. **Technical Approach**:
+   - Uses Unicode character ranges to identify and remove emoji characters
+   - Preserves all other text content while removing only emoji characters
+   - Ensures consistent, professional blog post content
+
+### Blog Post Enhancer
+The system now includes a Blog Post Enhancer that fills in missing metadata fields for blog posts:
+
+1. **Purpose**:
+   - Ensures all blog posts have complete metadata for proper display in the web interface
+   - Fixes issues with missing fields that caused errors when viewing blog posts
+   - Improves the quality and consistency of blog post metadata
+
+2. **Features**:
+   - Automatically enhances new blog posts when they're created
+   - Can be run on existing blog posts to fill in missing fields
+   - Uses AI to analyze content and determine appropriate metadata
+   - Provides fallbacks for all fields to ensure robustness
+
+3. **Implementation Details**:
+   - New `BlogPostEnhancer` class in `src/blog-post-enhancer.ts`
+   - CLI script in `src/enhance-blog-posts.ts` for batch processing
+   - Web server integration for automatic enhancement of new posts
+   - Convenience batch files (`enhance-blog-posts.bat` and `enhance-blog-posts.sh`)
+
+4. **Fields Enhanced**:
+   - **category**: Determined by analyzing the blog post content
+   - **tone**: Determined by analyzing the blog post content
+   - **tags**: Generated based on the blog post content
+   - **memory_refs**: References to relevant memories
+   - **character_id**: Set to Marvin's character ID
+   - **image_url**: Extracted from the blog post content if available
+
+For more details, see `BLOG_POST_ENHANCER.md`.
+
 ### Persona Upgrade
 The system now uses a standardized tweet generation method across all LLMs (OpenAI, Claude, Grok):
 
@@ -404,6 +476,59 @@ Future improvements to the conversation system could include:
 - Personalized response generation based on user history
 - Conversation topic clustering and trend analysis
 
+## X Account Monitoring and Tweet Scraping
+
+The system includes a feature for monitoring X (formerly Twitter) accounts and caching their tweets for analysis.
+
+### Overview
+This feature allows Marvin to:
+1. Monitor influential accounts in the industry
+2. Analyze engagement patterns
+3. Identify trending topics
+4. Gather inspiration for content creation
+5. Monitor competitors
+
+### Components
+1. **TwitterMonitorService**: Handles fetching tweets from X API
+2. **AccountMonitorService**: Manages account monitoring and scheduling
+3. **Account Monitor Scheduler**: Runs the monitoring process at scheduled intervals
+
+### Database Schema
+The feature uses several tables:
+
+1. **x_accounts**: Stores accounts to monitor
+   - Fields: id, handle, platform, priority, activity_level, last_checked, next_check_date, etc.
+
+2. **tweets_cache**: Stores cached tweets
+   - Fields: id, account_id, tweet_id, tweet_text, tweet_url, created_at, engagement_score, etc.
+
+3. **accounts_to_review**: Tracks accounts with errors
+   - Fields: id, handle, error_message, error_code, status, etc.
+
+4. **api_usage_stats**: Tracks API usage
+   - Fields: id, date, calls_made, daily_limit, reset_time, etc.
+
+### Activity-Based Monitoring
+Accounts are monitored based on their activity level:
+- **High Activity**: Checked daily
+- **Medium Activity**: Checked every 3 days
+- **Low Activity**: Checked weekly
+
+### Engagement Scoring
+Tweets are scored using a weighted formula:
+- Retweets: 1.5x weight
+- Quotes: 1.2x weight
+- Replies: 1.0x weight
+- Likes: 0.8x weight
+
+### Web Interface Integration
+The Account Monitoring feature is integrated into the web interface:
+- Accounts Tab: View and manage monitored accounts
+- Tweets Tab: View cached tweets for selected accounts
+- Process Tab: Manually trigger account processing
+
+For more details, see `X-SCRAPING.md`.
+
 ## Web Interface
 
 The application includes a web interface for managing and testing various features:
@@ -416,6 +541,30 @@ The application includes a web interface for managing and testing various featur
 1. Status Dashboard: Shows when the next scheduled tweet will be posted
 2. Test Tweet Generation: Generate and post test tweets on demand
 3. Engagement Rules Management: Configure how Marvin responds to user interactions
+4. Blog Post Generation: Create and manage blog posts
+
+### Responsive Design
+The web interface features a responsive design that works well on both mobile and desktop:
+
+1. **Mobile View**:
+   - Vertical stacking of all panels for easy scrolling
+   - Full-width components for optimal small-screen viewing
+   - Touch-friendly buttons and controls
+
+2. **Desktop View**:
+   - Multi-column grid layout that efficiently uses horizontal space
+   - Logical grouping of related panels in rows:
+     - Top row: Status and Tweet Preview panels
+     - Second row: Generate Test Tweet, Generate Blog Post, and Test Blog Post panels
+     - Third row: Engagement Rules and Account Monitoring panels
+   - Equal-height cards within each row for visual consistency
+   - Proper spacing and margins between panel rows
+
+3. **Implementation Details**:
+   - Uses Bootstrap's responsive grid system with custom breakpoints
+   - Custom CSS for card heights and flex layouts
+   - Media queries for different screen sizes
+   - Row-based organization with semantic grouping of functionality
 
 For more details, see `WEB_INTERFACE.md`.
 
