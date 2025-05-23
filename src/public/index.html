@@ -161,6 +161,97 @@
             </div>
           </div>
         </div>
+        
+        <div class="card mt-4">
+          <div class="card-header">Account Monitoring</div>
+          <div class="card-body">
+            <p class="text-muted">Monitor X accounts and cache their tweets for analysis.</p>
+            
+            <ul class="nav nav-tabs mb-3" id="accountTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="accounts-tab" data-bs-toggle="tab" data-bs-target="#accounts-content" type="button" role="tab" aria-controls="accounts-content" aria-selected="true">Accounts</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tweets-tab" data-bs-toggle="tab" data-bs-target="#tweets-content" type="button" role="tab" aria-controls="tweets-content" aria-selected="false">Tweets</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="process-tab" data-bs-toggle="tab" data-bs-target="#process-content" type="button" role="tab" aria-controls="process-content" aria-selected="false">Process</button>
+              </li>
+            </ul>
+            
+            <div class="tab-content" id="accountTabsContent">
+              <div class="tab-pane fade show active" id="accounts-content" role="tabpanel" aria-labelledby="accounts-tab">
+                <div id="accounts-container">
+                  <p>Loading accounts...</p>
+                </div>
+                
+                <div class="mt-3">
+                  <h5>Add Account</h5>
+                  <form id="add-account-form">
+                    <div class="mb-3">
+                      <label for="account-handle" class="form-label">Handle (without @)</label>
+                      <input type="text" class="form-control" id="account-handle" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label for="account-priority" class="form-label">Priority (1-5, 1 is highest)</label>
+                      <input type="number" class="form-control" id="account-priority" min="1" max="5" value="3">
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label for="account-activity" class="form-label">Activity Level</label>
+                      <select class="form-select" id="account-activity">
+                        <option value="high">High (check daily)</option>
+                        <option value="medium" selected>Medium (check every 3 days)</option>
+                        <option value="low">Low (check weekly)</option>
+                      </select>
+                    </div>
+                    
+                    <div class="d-grid">
+                      <button type="submit" class="btn btn-primary">Add Account</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              
+              <div class="tab-pane fade" id="tweets-content" role="tabpanel" aria-labelledby="tweets-tab">
+                <div class="mb-3">
+                  <label for="tweet-account-select" class="form-label">Select Account</label>
+                  <select class="form-select" id="tweet-account-select">
+                    <option value="" disabled selected>Select an account</option>
+                  </select>
+                </div>
+                
+                <div id="tweets-container">
+                  <p>Select an account to view tweets</p>
+                </div>
+                
+                <div class="d-grid gap-2 mt-3">
+                  <button type="button" class="btn btn-primary" id="fetch-tweets-btn" disabled>Fetch Tweets</button>
+                </div>
+              </div>
+              
+              <div class="tab-pane fade" id="process-content" role="tabpanel" aria-labelledby="process-tab">
+                <p>Process accounts that are due for checking.</p>
+                
+                <div class="mb-3">
+                  <label for="batch-size" class="form-label">Batch Size</label>
+                  <input type="number" class="form-control" id="batch-size" min="1" value="10">
+                </div>
+                
+                <div class="d-grid">
+                  <button type="button" class="btn btn-primary" id="process-accounts-btn">Process Accounts</button>
+                </div>
+                
+                <div class="mt-3" id="process-result" style="display: none;">
+                  <div class="alert alert-info">
+                    <p id="process-result-message"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div class="col-md-8">
@@ -711,6 +802,378 @@
       
       // Load engagement rules
       loadEngagementRules();
+      
+      // Account Monitoring
+      
+      // Load accounts
+      function loadAccounts() {
+        fetch('/api/account-monitor/accounts')
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              renderAccounts(data.accounts);
+              populateAccountSelect(data.accounts);
+            } else {
+              document.getElementById('accounts-container').innerHTML = 
+                '<div class="alert alert-danger">Failed to load accounts: ' + data.message + '</div>';
+            }
+          })
+          .catch(error => {
+            console.error('Error loading accounts:', error);
+            document.getElementById('accounts-container').innerHTML = 
+              '<div class="alert alert-danger">Failed to load accounts. Please refresh the page.</div>';
+          });
+      }
+      
+      // Render accounts table
+      function renderAccounts(accounts) {
+        const container = document.getElementById('accounts-container');
+        
+        if (!accounts || accounts.length === 0) {
+          container.innerHTML = '<p>No accounts found. Add an account to get started.</p>';
+          return;
+        }
+        
+        let html = `
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Handle</th>
+                  <th>Priority</th>
+                  <th>Activity</th>
+                  <th>Last Checked</th>
+                  <th>Next Check</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        accounts.forEach(account => {
+          const lastChecked = account.last_checked ? new Date(account.last_checked).toLocaleString() : 'Never';
+          const nextCheck = account.next_check_date ? new Date(account.next_check_date).toLocaleString() : 'ASAP';
+          
+          html += `
+            <tr>
+              <td>${account.id}</td>
+              <td>@${account.handle}</td>
+              <td>${account.priority}</td>
+              <td>${account.activity_level}</td>
+              <td>${lastChecked}</td>
+              <td>${nextCheck}</td>
+              <td>
+                <button class="btn btn-sm btn-primary view-tweets-btn" data-id="${account.id}" data-handle="${account.handle}">View Tweets</button>
+                <button class="btn btn-sm btn-danger remove-account-btn" data-id="${account.id}" data-handle="${account.handle}">Remove</button>
+              </td>
+            </tr>
+          `;
+        });
+        
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+        
+        container.innerHTML = html;
+        
+        // Add event listeners for buttons
+        document.querySelectorAll('.view-tweets-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const accountId = this.dataset.id;
+            const handle = this.dataset.handle;
+            
+            // Switch to tweets tab
+            document.getElementById('tweets-tab').click();
+            
+            // Select the account in the dropdown
+            const select = document.getElementById('tweet-account-select');
+            select.value = accountId;
+            
+            // Trigger change event
+            const event = new Event('change');
+            select.dispatchEvent(event);
+          });
+        });
+        
+        document.querySelectorAll('.remove-account-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const accountId = this.dataset.id;
+            const handle = this.dataset.handle;
+            
+            if (confirm(`Are you sure you want to remove @${handle}?`)) {
+              removeAccount(accountId);
+            }
+          });
+        });
+      }
+      
+      // Populate account select dropdown
+      function populateAccountSelect(accounts) {
+        const select = document.getElementById('tweet-account-select');
+        
+        // Clear existing options except the first one
+        while (select.options.length > 1) {
+          select.remove(1);
+        }
+        
+        if (!accounts || accounts.length === 0) {
+          return;
+        }
+        
+        accounts.forEach(account => {
+          const option = document.createElement('option');
+          option.value = account.id;
+          option.textContent = `@${account.handle}`;
+          select.appendChild(option);
+        });
+        
+        // Enable fetch button if accounts exist
+        document.getElementById('fetch-tweets-btn').disabled = accounts.length === 0;
+        
+        // Add change event listener
+        select.addEventListener('change', function() {
+          if (this.value) {
+            loadTweets(this.value);
+          } else {
+            document.getElementById('tweets-container').innerHTML = '<p>Select an account to view tweets</p>';
+          }
+        });
+      }
+      
+      // Load tweets for an account
+      function loadTweets(accountId) {
+        document.getElementById('tweets-container').innerHTML = '<p>Loading tweets...</p>';
+        
+        fetch(`/api/account-monitor/tweets/${accountId}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              renderTweets(data.tweets);
+            } else {
+              document.getElementById('tweets-container').innerHTML = 
+                '<div class="alert alert-danger">Failed to load tweets: ' + data.message + '</div>';
+            }
+          })
+          .catch(error => {
+            console.error('Error loading tweets:', error);
+            document.getElementById('tweets-container').innerHTML = 
+              '<div class="alert alert-danger">Failed to load tweets. Please try again.</div>';
+          });
+      }
+      
+      // Render tweets
+      function renderTweets(tweets) {
+        const container = document.getElementById('tweets-container');
+        
+        if (!tweets || tweets.length === 0) {
+          container.innerHTML = '<p>No tweets found for this account.</p>';
+          return;
+        }
+        
+        let html = `
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Tweet</th>
+                  <th>Engagement</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        
+        tweets.forEach(tweet => {
+          const date = new Date(tweet.created_at).toLocaleString();
+          const text = tweet.tweet_text.length > 100 
+            ? tweet.tweet_text.substring(0, 100) + '...' 
+            : tweet.tweet_text;
+          
+          html += `
+            <tr>
+              <td>${date}</td>
+              <td>
+                <a href="${tweet.tweet_url}" target="_blank">${text}</a>
+              </td>
+              <td>${tweet.engagement_score.toFixed(1)}</td>
+            </tr>
+          `;
+        });
+        
+        html += `
+              </tbody>
+            </table>
+          </div>
+        `;
+        
+        container.innerHTML = html;
+      }
+      
+      // Add account
+      document.getElementById('add-account-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const handle = document.getElementById('account-handle').value.trim();
+        const priority = parseInt(document.getElementById('account-priority').value);
+        const activityLevel = document.getElementById('account-activity').value;
+        
+        if (!handle) {
+          alert('Please enter a handle');
+          return;
+        }
+        
+        // Remove @ if present
+        const cleanHandle = handle.startsWith('@') ? handle.substring(1) : handle;
+        
+        const submitBtn = document.querySelector('#add-account-form button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding...';
+        
+        fetch('/api/account-monitor/add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            handle: cleanHandle,
+            priority,
+            activityLevel
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Add Account';
+          
+          if (data.success) {
+            alert('Account added successfully!');
+            document.getElementById('account-handle').value = '';
+            loadAccounts();
+          } else {
+            alert('Error adding account: ' + data.message);
+          }
+        })
+        .catch(error => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Add Account';
+          console.error('Error:', error);
+          alert('Failed to add account. Please try again.');
+        });
+      });
+      
+      // Remove account
+      function removeAccount(accountId) {
+        fetch('/api/account-monitor/remove', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            accountId
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Account removed successfully!');
+            loadAccounts();
+          } else {
+            alert('Error removing account: ' + data.message);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Failed to remove account. Please try again.');
+        });
+      }
+      
+      // Fetch tweets button
+      document.getElementById('fetch-tweets-btn').addEventListener('click', function() {
+        const accountId = document.getElementById('tweet-account-select').value;
+        
+        if (!accountId) {
+          alert('Please select an account');
+          return;
+        }
+        
+        this.disabled = true;
+        this.textContent = 'Fetching...';
+        
+        fetch('/api/account-monitor/fetch-tweets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            accountId: parseInt(accountId),
+            count: 20
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          this.disabled = false;
+          this.textContent = 'Fetch Tweets';
+          
+          if (data.success) {
+            alert('Tweets fetched successfully!');
+            renderTweets(data.tweets);
+          } else {
+            alert('Error fetching tweets: ' + data.message);
+          }
+        })
+        .catch(error => {
+          this.disabled = false;
+          this.textContent = 'Fetch Tweets';
+          console.error('Error:', error);
+          alert('Failed to fetch tweets. Please try again.');
+        });
+      });
+      
+      // Process accounts button
+      document.getElementById('process-accounts-btn').addEventListener('click', function() {
+        const batchSize = parseInt(document.getElementById('batch-size').value);
+        
+        this.disabled = true;
+        this.textContent = 'Processing...';
+        
+        document.getElementById('process-result').style.display = 'none';
+        
+        fetch('/api/account-monitor/process', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            batchSize
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          this.disabled = false;
+          this.textContent = 'Process Accounts';
+          
+          document.getElementById('process-result').style.display = 'block';
+          document.getElementById('process-result-message').textContent = data.message;
+          
+          if (data.success) {
+            loadAccounts();
+          }
+        })
+        .catch(error => {
+          this.disabled = false;
+          this.textContent = 'Process Accounts';
+          console.error('Error:', error);
+          
+          document.getElementById('process-result').style.display = 'block';
+          document.getElementById('process-result-message').textContent = 'Failed to process accounts. Please try again.';
+        });
+      });
+      
+      // Load accounts on page load
+      loadAccounts();
     });
   </script>
 </body>

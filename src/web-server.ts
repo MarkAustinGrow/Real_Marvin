@@ -7,6 +7,7 @@ import { EngagementService } from '../services/engagement/EngagementService';
 import { blogPostScheduler } from './blog-post-scheduler';
 import { SupabaseService } from '../services/supabase/SupabaseService';
 import { BlogPostEnhancer } from './blog-post-enhancer';
+import { AccountMonitorService } from '../services/monitoring/AccountMonitorService';
 
 export function startWebServer() {
   const app = express();
@@ -316,6 +317,231 @@ export function startWebServer() {
       res.json({ rules: engagementService.getRules() });
     } catch (error: unknown) {
       console.error('Error getting engagement rules:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  // Account monitoring endpoints
+  app.get('/api/account-monitor/accounts', async (req: Request, res: Response) => {
+    try {
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const accounts = await accountMonitorService.getAllAccounts();
+      res.json({ success: true, accounts });
+    } catch (error: unknown) {
+      console.error('Error getting accounts:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/account-monitor/add', express.json(), async (req: Request, res: Response) => {
+    try {
+      const { handle, priority, activityLevel } = req.body;
+      
+      if (!handle) {
+        return res.status(400).json({
+          success: false,
+          message: 'Handle is required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const accountId = await accountMonitorService.addAccount(
+        handle,
+        priority || 3,
+        activityLevel || 'medium'
+      );
+      
+      if (accountId) {
+        res.json({
+          success: true,
+          message: `Account @${handle} added successfully`,
+          accountId
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: `Failed to add account @${handle}`
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error adding account:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/account-monitor/remove', express.json(), async (req: Request, res: Response) => {
+    try {
+      const { accountId } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account ID is required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const success = await accountMonitorService.removeAccount(accountId);
+      
+      if (success) {
+        res.json({
+          success: true,
+          message: `Account removed successfully`
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: `Failed to remove account`
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error removing account:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/account-monitor/update', express.json(), async (req: Request, res: Response) => {
+    try {
+      const { accountId, properties } = req.body;
+      
+      if (!accountId || !properties) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account ID and properties are required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const success = await accountMonitorService.updateAccount(accountId, properties);
+      
+      if (success) {
+        res.json({
+          success: true,
+          message: `Account updated successfully`
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: `Failed to update account`
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error updating account:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.get('/api/account-monitor/tweets/:accountId', async (req: Request, res: Response) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      
+      if (isNaN(accountId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid account ID'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const tweets = await accountMonitorService.getCachedTweets(accountId);
+      
+      res.json({
+        success: true,
+        tweets
+      });
+    } catch (error: unknown) {
+      console.error('Error getting tweets:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/account-monitor/fetch-tweets', express.json(), async (req: Request, res: Response) => {
+    try {
+      const { accountId, count } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account ID is required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      
+      // Get the account
+      const accounts = await accountMonitorService.getAllAccounts();
+      const account = accounts.find(a => a.id === accountId);
+      
+      if (!account) {
+        return res.status(404).json({
+          success: false,
+          message: `Account with ID ${accountId} not found`
+        });
+      }
+      
+      // Fetch and cache tweets
+      const success = await accountMonitorService.fetchAndCacheTweets(
+        account,
+        count || 10,
+        true,
+        true
+      );
+      
+      if (success) {
+        // Get the cached tweets
+        const tweets = await accountMonitorService.getCachedTweets(accountId);
+        
+        res.json({
+          success: true,
+          message: `Fetched tweets for account @${account.handle}`,
+          tweets
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: `Failed to fetch tweets for account @${account.handle}`
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching tweets:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/account-monitor/process', express.json(), async (req: Request, res: Response) => {
+    try {
+      const { batchSize } = req.body;
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const count = await accountMonitorService.processAccounts(batchSize || 10);
+      
+      res.json({
+        success: true,
+        message: `Processed ${count} accounts successfully`
+      });
+    } catch (error: unknown) {
+      console.error('Error processing accounts:', error);
       res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : 'An unknown error occurred'

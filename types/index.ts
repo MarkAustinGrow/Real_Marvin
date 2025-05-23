@@ -33,3 +33,12 @@ export interface BlogPostSchedulerConfig {
         enabled: boolean;
     };
 }
+
+export interface AccountMonitorConfig {
+    enabled: boolean;
+    batchSize: number;
+    intervalMinutes: number;
+    includeReplies: boolean;
+    includeRetweets: boolean;
+    tweetsPerAccount: number;
+}

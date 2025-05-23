@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { TwitterConfig, BlogPostSchedulerConfig } from '../types';
+import { TwitterConfig, BlogPostSchedulerConfig, AccountMonitorConfig } from '../types';
 
 dotenv.config();
 
@@ -36,7 +36,15 @@ export const config = {
         notifications: {
             enabled: false
         }
-    } as BlogPostSchedulerConfig
+    } as BlogPostSchedulerConfig,
+    accountMonitor: {
+        enabled: process.env.ACCOUNT_MONITOR_ENABLED === 'true',
+        batchSize: parseInt(process.env.ACCOUNT_MONITOR_BATCH_SIZE || '10', 10),
+        intervalMinutes: parseInt(process.env.ACCOUNT_MONITOR_INTERVAL_MINUTES || '60', 10),
+        includeReplies: process.env.ACCOUNT_MONITOR_INCLUDE_REPLIES !== 'false',
+        includeRetweets: process.env.ACCOUNT_MONITOR_INCLUDE_RETWEETS !== 'false',
+        tweetsPerAccount: parseInt(process.env.ACCOUNT_MONITOR_TWEETS_PER_ACCOUNT || '10', 10)
+    } as AccountMonitorConfig
 };
 
 // Validate required environment variables
