@@ -27,11 +27,13 @@
       border: 1px solid #ddd;
       border-radius: 10px;
       padding: 15px;
-      margin-top: 20px;
       background-color: white;
       height: 100%;
     }
     .status-card {
+      margin-bottom: 0;
+    }
+    .panel-row {
       margin-bottom: 20px;
     }
     .hashtags {
@@ -85,7 +87,9 @@
   <div class="container">
     <h1 class="mb-4">Marvin AI Agent - Admin Interface</h1>
     
-    <div class="row row-eq-height">
+    <!-- First row: Status and Tweet Preview -->
+    <div class="row row-eq-height panel-row">
+      <!-- Status Panel -->
       <div class="col-lg-3 col-md-4">
         <div class="card status-card h-100">
           <div class="card-header">Status</div>
@@ -93,8 +97,26 @@
             <p>Loading status...</p>
           </div>
         </div>
-        
-        <div class="card mb-4">
+      </div>
+      
+      <!-- Tweet Preview Panel -->
+      <div class="col-lg-9 col-md-8">
+        <div class="card h-100">
+          <div class="card-header">Tweet Preview</div>
+          <div class="card-body">
+            <p class="text-muted">Generate a preview to see how your tweet will look</p>
+            <div id="tweet-content"></div>
+            <div id="tweet-hashtags" class="hashtags mt-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Second row: Generate Tweet, Generate Blog Post, Test Blog Post -->
+    <div class="row row-eq-height panel-row">
+      <!-- Generate Test Tweet Panel -->
+      <div class="col-lg-4 col-md-4">
+        <div class="card h-100">
           <div class="card-header">Generate Test Tweet</div>
           <div class="card-body">
             <form id="tweet-form">
@@ -113,8 +135,11 @@
             </form>
           </div>
         </div>
-        
-        <div class="card mb-4">
+      </div>
+      
+      <!-- Generate Blog Post Panel -->
+      <div class="col-lg-4 col-md-4">
+        <div class="card h-100">
           <div class="card-header">Generate Blog Post</div>
           <div class="card-body">
             <p class="text-muted">Generate a blog post with Marvin's unique style and perspective.</p>
@@ -160,8 +185,11 @@
             </div>
           </div>
         </div>
-        
-        <div class="card mb-4">
+      </div>
+      
+      <!-- Test Blog Post Panel -->
+      <div class="col-lg-4 col-md-4">
+        <div class="card h-100">
           <div class="card-header">Test Blog Post</div>
           <div class="card-body">
             <p class="text-muted">Test the blog post scheduler to check for and post any blog posts with "ready_to_tweet" status.</p>
@@ -186,8 +214,14 @@
             </div>
           </div>
         </div>
-        
-        <div class="card mt-4">
+      </div>
+    </div>
+    
+    <!-- Third row: Engagement Rules and Account Monitoring -->
+    <div class="row row-eq-height panel-row">
+      <!-- Engagement Rules Panel -->
+      <div class="col-lg-6 col-md-6">
+        <div class="card h-100">
           <div class="card-header">Engagement Rules</div>
           <div class="card-body">
             <div id="rules-container">
@@ -199,8 +233,11 @@
             </div>
           </div>
         </div>
-        
-        <div class="card mt-4">
+      </div>
+      
+      <!-- Account Monitoring Panel -->
+      <div class="col-lg-6 col-md-6">
+        <div class="card h-100">
           <div class="card-header">Account Monitoring</div>
           <div class="card-body">
             <p class="text-muted">Monitor X accounts and cache their tweets for analysis.</p>
@@ -291,16 +328,12 @@
           </div>
         </div>
       </div>
-      
-      <div class="col-lg-9 col-md-8">
-        <div class="tweet-preview" id="preview-container">
-          <h5>Tweet Preview</h5>
-          <p class="text-muted">Generate a preview to see how your tweet will look</p>
-          <div id="tweet-content"></div>
-          <div id="tweet-hashtags" class="hashtags mt-2"></div>
-        </div>
-        
-        <div class="alert alert-info mt-3" role="alert">
+    </div>
+    
+    <!-- Note section -->
+    <div class="row mt-3">
+      <div class="col-12">
+        <div class="alert alert-info" role="alert">
           <h5>Note:</h5>
           <p>This interface allows you to test tweet generation and posting outside of the scheduled times (9 AM and 5 PM).</p>
           <p>Use the "Preview" button to see how a tweet will look without posting it.</p>
