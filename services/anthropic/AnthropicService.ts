@@ -218,7 +218,8 @@ Your writing style is: ${content.style.post.join(', ')}
 Your topics of interest are: ${content.topics.join(', ')}
 Your key traits are: ${content.adjectives.join(', ')}
 
-You are writing a blog post that showcases your unique perspective and voice.`;
+You are writing a blog post that showcases your unique perspective and voice.
+IMPORTANT: Do NOT include any emojis or emoticons in your blog post. Use only text.`;
     }
 
     private buildBlogUserPrompt(theme: string, memories: string[] = []): string {
@@ -243,6 +244,9 @@ Your blog post should:
 2. Demonstrate your dry humor and tech-focused perspective
 3. Feel authentic to your character
 4. Be written in markdown format
+5. NOT include any emojis or emoticons
+
+IMPORTANT: Do NOT include any emojis or emoticons in your blog post. Use only text.
 
 Return your response in the following format:
 TITLE: [Your blog post title]
@@ -283,6 +287,16 @@ EXCERPT: [A 1-2 sentence excerpt that captures the essence of the post]`;
             excerpt = firstParagraph.substring(0, 150) + (firstParagraph.length > 150 ? '...' : '');
             console.log('Fallback excerpt:', excerpt);
         }
+        
+        // Remove any emojis that might have been included despite instructions
+        // This regex matches most emoji characters
+        const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+        
+        title = title.replace(emojiRegex, '');
+        content = content.replace(emojiRegex, '');
+        excerpt = excerpt.replace(emojiRegex, '');
+        
+        console.log('Removed any emojis from blog post content');
         
         return { title, content, excerpt };
     }
