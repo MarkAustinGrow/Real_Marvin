@@ -1,5 +1,6 @@
 import { SupabaseService } from '../supabase/SupabaseService';
 import { TwitterMonitorService } from './TwitterMonitorService';
+import { ApiCallLogger } from './ApiCallLogger';
 import { XAccount, TweetCache, AccountToReview, ApiUsageStats, RateLimitInfo } from '../../types/x-scraping';
 import { config } from '../../config';
 
@@ -10,10 +11,17 @@ export class AccountMonitorService {
   private static instance: AccountMonitorService;
   private supabaseService: SupabaseService;
   private twitterMonitorService: TwitterMonitorService;
+  private apiLogger: ApiCallLogger;
+  
+  // Rate limiting properties
+  private dailyApiCallsUsed: number = 0;
+  private dailyApiCallLimit: number = 250;
+  private lastApiUsageCheck: Date | null = null;
   
   private constructor() {
     this.supabaseService = SupabaseService.getInstance();
     this.twitterMonitorService = TwitterMonitorService.getInstance();
+    this.apiLogger = ApiCallLogger.getInstance();
   }
   
   /**
@@ -446,13 +454,81 @@ export class AccountMonitorService {
   }
   
   /**
-   * Process all accounts that are due for checking
-   * @param batchSize Number of accounts to process in one batch
+   * Check current API usage and determine if we can make more calls
+   * @returns Object with usage info and whether we can proceed
+   */
+  public async checkApiUsage(): Promise<{
+    canProceed: boolean;
+    remainingCalls: number;
+    usedCalls: number;
+    percentageUsed: number;
+    recommendedBatchSize: number;
+  }> {
+    try {
+      // Get today's API usage stats from the API logger
+      const stats = await this.apiLogger.getTodayUsageStats();
+      
+      const usedCalls = stats.total_calls;
+      const remainingCalls = this.dailyApiCallLimit - usedCalls;
+      const percentageUsed = (usedCalls / this.dailyApiCallLimit) * 100;
+      
+      // Calculate recommended batch size based on remaining calls
+      // Each account uses ~2 API calls (user lookup + tweet fetch)
+      const maxAccountsFromRemaining = Math.floor(remainingCalls / 2);
+      
+      // Conservative approach: don't use more than 80% of remaining calls in one batch
+      const recommendedBatchSize = Math.min(
+        Math.floor(maxAccountsFromRemaining * 0.8),
+        config.accountMonitor?.batchSize || 10
+      );
+      
+      // Don't proceed if we're at 90% usage or have less than 20 calls remaining
+      const canProceed = percentageUsed < 90 && remainingCalls > 20;
+      
+      console.log(`API Usage Check: ${usedCalls}/${this.dailyApiCallLimit} calls used (${percentageUsed.toFixed(1)}%)`);
+      console.log(`Remaining calls: ${remainingCalls}, Recommended batch size: ${recommendedBatchSize}`);
+      
+      return {
+        canProceed,
+        remainingCalls,
+        usedCalls,
+        percentageUsed,
+        recommendedBatchSize: Math.max(1, recommendedBatchSize) // Ensure at least 1
+      };
+    } catch (error) {
+      console.error('Error checking API usage:', error);
+      // Conservative fallback
+      return {
+        canProceed: false,
+        remainingCalls: 0,
+        usedCalls: this.dailyApiCallLimit,
+        percentageUsed: 100,
+        recommendedBatchSize: 1
+      };
+    }
+  }
+
+  /**
+   * Process all accounts that are due for checking with smart rate limiting
+   * @param batchSize Number of accounts to process in one batch (optional, will be calculated if not provided)
    * @returns Number of accounts processed
    */
-  public async processAccounts(batchSize: number = 10): Promise<number> {
+  public async processAccounts(batchSize?: number): Promise<number> {
     try {
-      console.log('Processing accounts...');
+      console.log('Processing accounts with smart rate limiting...');
+      
+      // Check API usage before proceeding
+      const apiUsage = await this.checkApiUsage();
+      
+      if (!apiUsage.canProceed) {
+        console.log(`Skipping account processing due to API usage limits. Used: ${apiUsage.usedCalls}/${this.dailyApiCallLimit} (${apiUsage.percentageUsed.toFixed(1)}%)`);
+        return 0;
+      }
+      
+      // Use recommended batch size if not provided
+      const effectiveBatchSize = batchSize || apiUsage.recommendedBatchSize;
+      
+      console.log(`Using batch size: ${effectiveBatchSize} (API usage: ${apiUsage.percentageUsed.toFixed(1)}%)`);
       
       // Get accounts to monitor
       const accounts = await this.getAccountsToMonitor();
@@ -465,7 +541,7 @@ export class AccountMonitorService {
       console.log(`Found ${accounts.length} accounts to process.`);
       
       // Process accounts in batches
-      const accountsToProcess = accounts.slice(0, batchSize);
+      const accountsToProcess = accounts.slice(0, effectiveBatchSize);
       
       console.log(`Processing ${accountsToProcess.length} accounts in this batch.`);
       
@@ -475,6 +551,15 @@ export class AccountMonitorService {
       for (const account of accountsToProcess) {
         console.log(`Processing account @${account.handle}...`);
         
+        // Check API usage before each account (if we're getting close to limits)
+        if (apiUsage.percentageUsed > 70) {
+          const currentUsage = await this.checkApiUsage();
+          if (!currentUsage.canProceed) {
+            console.log(`Stopping account processing due to API usage limits reached during batch.`);
+            break;
+          }
+        }
+        
         // Fetch and cache tweets for this account
         const success = await this.fetchAndCacheTweets(account);
         
@@ -483,13 +568,20 @@ export class AccountMonitorService {
         }
         
         // Add a delay between accounts to avoid rate limits
+        // Longer delay if we're using more API quota
+        const delayMs = apiUsage.percentageUsed > 70 ? 5000 : 2000;
+        
         if (accountsToProcess.indexOf(account) < accountsToProcess.length - 1) {
-          console.log('Waiting 2 seconds before processing next account...');
-          await this.twitterMonitorService.delay(2000);
+          console.log(`Waiting ${delayMs / 1000} seconds before processing next account...`);
+          await this.twitterMonitorService.delay(delayMs);
         }
       }
       
       console.log(`Processed ${successCount} accounts successfully.`);
+      
+      // Log final API usage
+      const finalUsage = await this.checkApiUsage();
+      console.log(`Final API usage: ${finalUsage.usedCalls}/${this.dailyApiCallLimit} (${finalUsage.percentageUsed.toFixed(1)}%)`);
       
       return successCount;
     } catch (error) {

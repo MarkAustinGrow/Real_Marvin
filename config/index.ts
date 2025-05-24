@@ -39,11 +39,16 @@ export const config = {
     } as BlogPostSchedulerConfig,
     accountMonitor: {
         enabled: process.env.ACCOUNT_MONITOR_ENABLED === 'true',
-        batchSize: parseInt(process.env.ACCOUNT_MONITOR_BATCH_SIZE || '10', 10),
-        intervalMinutes: parseInt(process.env.ACCOUNT_MONITOR_INTERVAL_MINUTES || '60', 10),
+        batchSize: parseInt(process.env.ACCOUNT_MONITOR_BATCH_SIZE || '5', 10), // Reduced default batch size
+        intervalMinutes: parseInt(process.env.ACCOUNT_MONITOR_INTERVAL_MINUTES || '120', 10), // Increased default interval to 2 hours
         includeReplies: process.env.ACCOUNT_MONITOR_INCLUDE_REPLIES !== 'false',
         includeRetweets: process.env.ACCOUNT_MONITOR_INCLUDE_RETWEETS !== 'false',
-        tweetsPerAccount: parseInt(process.env.ACCOUNT_MONITOR_TWEETS_PER_ACCOUNT || '10', 10)
+        tweetsPerAccount: parseInt(process.env.ACCOUNT_MONITOR_TWEETS_PER_ACCOUNT || '10', 10),
+        // New optimized settings
+        maxDailyApiCalls: parseInt(process.env.ACCOUNT_MONITOR_MAX_DAILY_API_CALLS || '200', 10), // Reserve 50 calls for other services
+        emergencyThreshold: parseInt(process.env.ACCOUNT_MONITOR_EMERGENCY_THRESHOLD || '90', 10), // Stop at 90% usage
+        smartScheduling: process.env.ACCOUNT_MONITOR_SMART_SCHEDULING !== 'false', // Enable smart scheduling by default
+        avoidPeakHours: process.env.ACCOUNT_MONITOR_AVOID_PEAK_HOURS !== 'false' // Avoid peak hours by default
     } as AccountMonitorConfig
 };
 
