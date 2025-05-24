@@ -4,36 +4,131 @@ import { PostContent } from '../types';
 
 /**
  * Scheduler for engagement monitoring and daily wrap-up
- * This script sets up scheduled tasks for engagement features
+ * This script sets up scheduled tasks for engagement features with optimized API usage
  */
 class EngagementScheduler {
     private twitterService: TwitterService;
     private engagementService: EngagementService;
+    private cachedUsername: string | null = null;
+    private lastUsernameCheck: Date | null = null;
     
     constructor() {
         this.twitterService = TwitterService.getInstance();
         this.engagementService = EngagementService.getInstance();
         
-        console.log('Engagement scheduler initialized');
+        console.log('Engagement scheduler initialized with API optimization');
     }
     
     /**
      * Start the scheduler
      */
     public start(): void {
-        console.log('Starting engagement scheduler');
+        console.log('Starting engagement scheduler with smart time-based monitoring');
         
-        // Schedule engagement monitoring every 30 minutes (increased from 10 to reduce rate limit issues)
-        this.scheduleEngagementMonitoring(30);
+        // Schedule smart engagement monitoring with time-based intervals
+        this.scheduleSmartEngagementMonitoring();
         
         // Schedule daily wrap-up at 9:00 PM
         // this.scheduleDailyWrapup(21, 0);  // Commented out to stop the 9 PM Grok posts
         
-        console.log('Engagement scheduler started');
+        console.log('Engagement scheduler started with optimized API usage');
     }
     
     /**
-     * Schedule engagement monitoring at regular intervals
+     * Schedule smart engagement monitoring with time-based intervals
+     * Peak hours: 11am-5pm (1-hour intervals) = 6 calls
+     * Off-peak: 6am-11am, 5pm-10pm (2-hour intervals) = 5 calls  
+     * Overnight: 10pm-6am (4-hour intervals) = 2 calls
+     * Total: ~13 calls/day instead of 48
+     */
+    private scheduleSmartEngagementMonitoring(): void {
+        console.log('Setting up smart time-based engagement monitoring');
+        
+        // Run initial check
+        this.monitorEngagements();
+        
+        // Schedule the next check
+        this.scheduleNextEngagementCheck();
+    }
+    
+    /**
+     * Schedule the next engagement check based on current time
+     */
+    private scheduleNextEngagementCheck(): void {
+        const now = new Date();
+        const currentHour = now.getHours();
+        let nextCheckMinutes: number;
+        let description: string;
+        
+        // Determine next check interval based on time of day
+        if (currentHour >= 11 && currentHour < 17) {
+            // Peak hours: 11am-5pm - check every hour
+            nextCheckMinutes = 60;
+            description = 'peak hours';
+        } else if ((currentHour >= 6 && currentHour < 11) || (currentHour >= 17 && currentHour < 22)) {
+            // Off-peak: 6am-11am, 5pm-10pm - check every 2 hours
+            nextCheckMinutes = 120;
+            description = 'off-peak hours';
+        } else {
+            // Overnight: 10pm-6am - check every 4 hours
+            nextCheckMinutes = 240;
+            description = 'overnight hours';
+        }
+        
+        console.log(`Next engagement check in ${nextCheckMinutes} minutes (${description})`);
+        
+        setTimeout(() => {
+            this.monitorEngagements();
+            this.scheduleNextEngagementCheck(); // Schedule the next one
+        }, nextCheckMinutes * 60 * 1000);
+    }
+    
+    /**
+     * Check if we're in emergency quota mode (< 30 remaining calls)
+     */
+    private async isEmergencyQuotaMode(): Promise<boolean> {
+        try {
+            // Check if we have token bucket info
+            const tokenBucket = (this.twitterService as any).tokenBucket;
+            if (tokenBucket && tokenBucket.tokens < 30) {
+                console.log(`Emergency quota mode activated. Only ${Math.floor(tokenBucket.tokens)} API calls remaining.`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking quota mode:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Get cached username or fetch if needed (cache for 24 hours)
+     */
+    private async getCachedUsername(): Promise<string | null> {
+        const now = new Date();
+        
+        // Check if we have a cached username that's less than 24 hours old
+        if (this.cachedUsername && this.lastUsernameCheck) {
+            const hoursSinceCheck = (now.getTime() - this.lastUsernameCheck.getTime()) / (1000 * 60 * 60);
+            if (hoursSinceCheck < 24) {
+                return this.cachedUsername;
+            }
+        }
+        
+        // Fetch fresh username
+        try {
+            this.cachedUsername = await this.twitterService.getOwnUsername();
+            this.lastUsernameCheck = now;
+            console.log(`Cached username: ${this.cachedUsername}`);
+            return this.cachedUsername;
+        } catch (error) {
+            console.error('Error caching username:', error);
+            return this.cachedUsername; // Return old cached value if available
+        }
+    }
+    
+    /**
+     * Schedule engagement monitoring at regular intervals (legacy method)
      * @param intervalMinutes Interval in minutes
      */
     private scheduleEngagementMonitoring(intervalMinutes: number): void {
@@ -90,7 +185,7 @@ class EngagementScheduler {
     }
     
     /**
-     * Monitor engagements from Twitter
+     * Monitor engagements from Twitter with optimized API usage
      */
     private async monitorEngagements(): Promise<void> {
         try {
@@ -103,8 +198,13 @@ class EngagementScheduler {
                 return;
             }
             
-            // Get recent tweets from our account
-            // For now, we'll just monitor mentions
+            // Check if we're in emergency quota mode
+            if (await this.isEmergencyQuotaMode()) {
+                console.log('Skipping engagement monitoring due to emergency quota mode');
+                return;
+            }
+            
+            // Use optimized monitoring that only checks mentions (saves API calls)
             await this.twitterService.monitorEngagements();
             
             console.log('Engagement monitoring completed');
@@ -124,6 +224,12 @@ class EngagementScheduler {
             if (this.twitterService.isRateLimited) {
                 const resetTime = this.twitterService.rateLimitResetTime;
                 console.log(`Skipping daily wrap-up due to rate limit. Will reset at ${resetTime?.toLocaleString() || 'unknown time'}`);
+                return;
+            }
+            
+            // Check if we're in emergency quota mode
+            if (await this.isEmergencyQuotaMode()) {
+                console.log('Skipping daily wrap-up due to emergency quota mode');
                 return;
             }
             

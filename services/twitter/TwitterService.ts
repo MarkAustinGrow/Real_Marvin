@@ -40,6 +40,11 @@ class TokenBucket {
     this.tokens = Math.min(this.maxTokens, this.tokens + newTokens);
     this.lastRefill = now;
   }
+  
+  get remainingTokens(): number {
+    this.refill();
+    return Math.floor(this.tokens);
+  }
 }
 
 export class TwitterService {
@@ -50,6 +55,10 @@ export class TwitterService {
     public isRateLimited: boolean = false;
     public rateLimitResetTime: Date | null = null;
     private tokenBucket: TokenBucket;
+    
+    // Caching properties
+    private cachedUsername: string | null = null;
+    private lastUsernameCheck: Date | null = null;
 
     private constructor() {
         this.client = new TwitterApi({
@@ -194,67 +203,74 @@ export class TwitterService {
     }
     
     /**
-     * Gets the authenticated user's username
+     * Gets the authenticated user's username with caching (24-hour cache)
      * @returns The username of the authenticated user
      */
     public async getOwnUsername(): Promise<string> {
+        const now = new Date();
+        
+        // Check if we have a cached username that's less than 24 hours old
+        if (this.cachedUsername && this.lastUsernameCheck) {
+            const hoursSinceCheck = (now.getTime() - this.lastUsernameCheck.getTime()) / (1000 * 60 * 60);
+            if (hoursSinceCheck < 24) {
+                return this.cachedUsername;
+            }
+        }
+        
+        // Fetch fresh username
         try {
             const me = await this.client.v2.me();
-            console.log(`Own username: ${me.data.username}`);
-            return me.data.username;
+            this.cachedUsername = me.data.username;
+            this.lastUsernameCheck = now;
+            console.log(`Cached username: ${this.cachedUsername}`);
+            return this.cachedUsername;
         } catch (error) {
             console.error('Error getting own username:', error);
-            return 'Yona_AI_Music'; // Fallback to hardcoded username
+            return this.cachedUsername || 'Yona_AI_Music'; // Return cached value or fallback
         }
     }
     
     /**
-     * Fetches recent engagements (likes, reposts, replies)
+     * Check if we're in emergency quota mode (< 30 remaining calls)
+     */
+    public isEmergencyQuotaMode(): boolean {
+        const remaining = this.tokenBucket.remainingTokens;
+        if (remaining < 30) {
+            console.log(`Emergency quota mode activated. Only ${remaining} API calls remaining.`);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Fetches recent engagements (optimized to reduce API calls)
      * @param tweetId Optional tweet ID to filter by
      * @param sinceId Optional tweet ID to fetch engagements since
      * @returns Array of engagement data
      */
     public async fetchRecentEngagements(tweetId?: string, sinceId?: string): Promise<any[]> {
         try {
-            console.log('Fetching recent engagements from Twitter');
+            console.log('Fetching recent engagements from Twitter (optimized)');
             
-            // If a specific tweet ID is provided, get engagements for that tweet
+            // Skip expensive engagement calls for specific tweets to save API quota
             if (tweetId) {
-                console.log(`Fetching engagements for tweet ID: ${tweetId}`);
-                
-                // Get likes for the tweet
-                const likersResponse = await this.client.v2.tweetLikedBy(tweetId);
-                const likers = likersResponse.data || [];
-                
-                // Get retweets of the tweet
-                const retweetersResponse = await this.client.v2.tweetRetweetedBy(tweetId);
-                const retweeters = retweetersResponse.data || [];
-                
-                // Get replies to the tweet (this requires a search)
-                const repliesResponse = await this.client.v2.search({
-                    query: `conversation_id:${tweetId}`,
-                    "tweet.fields": ["author_id", "conversation_id", "created_at", "text", "referenced_tweets"],
-                    "expansions": ["referenced_tweets.id", "in_reply_to_user_id"]
-                });
-                // Extract the tweets from the response
-                const replies = repliesResponse.tweets || [];
-                
-                // Process and return the combined engagement data
-                return this.processEngagementData(tweetId, likers, retweeters, replies);
+                console.log(`Skipping expensive engagement calls for tweet ID: ${tweetId} to conserve API quota`);
+                return []; // Return empty array to save API calls
             }
             
-            // If no tweet ID is provided, get recent mentions
+            // If no tweet ID is provided, get recent mentions only (most important)
             console.log('Fetching recent mentions');
             
-            // Get the authenticated user's ID
-            const me = await this.client.v2.me();
+            // Use cached username to avoid extra API call
+            const username = await this.getOwnUsername();
             
             // Search parameters
             const searchParams: any = {
-                query: `@${me.data.username}`,
+                query: `@${username}`,
                 "tweet.fields": ["author_id", "conversation_id", "created_at", "text", "referenced_tweets"],
                 "user.fields": ["id", "username", "name"],
-                "expansions": ["author_id", "referenced_tweets.id", "in_reply_to_user_id"]
+                "expansions": ["author_id", "referenced_tweets.id", "in_reply_to_user_id"],
+                "max_results": 10 // Limit results to reduce processing time
             };
             
             // Add since_id if provided
@@ -401,7 +417,7 @@ export class TwitterService {
     }
     
     /**
-     * Monitors and logs recent engagements
+     * Monitors and logs recent engagements with optimized API usage
      * @param tweetId Optional tweet ID to monitor
      */
     public async monitorEngagements(tweetId?: string): Promise<void> {
@@ -415,6 +431,12 @@ export class TwitterService {
                 return;
             }
             
+            // Check if we're in emergency quota mode
+            if (this.isEmergencyQuotaMode()) {
+                console.log('Skipping engagement monitoring due to emergency quota mode');
+                return;
+            }
+            
             // Check if we have enough tokens in the bucket
             if (!(await this.tokenBucket.consume(1))) {
                 console.log('Rate limit would be exceeded based on token bucket. Skipping engagement monitoring.');
@@ -424,7 +446,7 @@ export class TwitterService {
             // Get the engagement service
             const engagementService = EngagementService.getInstance();
             
-            // Fetch recent engagements
+            // Fetch recent engagements (optimized to only check mentions)
             const engagements = await this.fetchRecentEngagements(tweetId);
             
             // Log each engagement
@@ -447,5 +469,20 @@ export class TwitterService {
         } catch (error) {
             console.error('Error monitoring engagements:', error);
         }
+    }
+    
+    /**
+     * Get current API usage statistics
+     */
+    public getApiUsageStats(): { remaining: number; total: number; percentage: number } {
+        const remaining = this.tokenBucket.remainingTokens;
+        const total = 250;
+        const percentage = Math.round((remaining / total) * 100);
+        
+        return {
+            remaining,
+            total,
+            percentage
+        };
     }
 }
