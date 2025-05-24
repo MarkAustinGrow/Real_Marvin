@@ -1,0 +1,22 @@
+#!/bin/bash
+
+echo "Testing API Call Logging System..."
+echo
+
+# Get the directory of the script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "$DIR"
+
+echo "Compiling TypeScript..."
+npx tsc
+
+if [ $? -ne 0 ]; then
+    echo "Failed to compile TypeScript"
+    exit 1
+fi
+
+echo "Running API logging test..."
+node dist/src/test-api-logging.js
+
+echo
+echo "Test completed. Check the output above for results."

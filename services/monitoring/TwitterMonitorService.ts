@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { config } from '../../config';
 import { RateLimitInfo, TweetCache } from '../../types/x-scraping';
+import { ApiCallLogger } from './ApiCallLogger';
 
 /**
  * Service for interacting with the Twitter API to monitor accounts and fetch tweets
@@ -10,6 +11,7 @@ import { RateLimitInfo, TweetCache } from '../../types/x-scraping';
 export class TwitterMonitorService {
   private static instance: TwitterMonitorService;
   private client: TwitterApi;
+  private apiLogger: ApiCallLogger;
   private userIdCache: Map<string, string> = new Map();
   private readonly USER_CACHE_FILE: string;
   
@@ -21,6 +23,9 @@ export class TwitterMonitorService {
       accessToken: config.twitter.accessToken,
       accessSecret: config.twitter.accessTokenSecret,
     });
+    
+    // Initialize the API call logger
+    this.apiLogger = ApiCallLogger.getInstance();
     
     this.USER_CACHE_FILE = path.join(__dirname, '..', '..', 'cache', 'user_id_cache.json');
     this.loadUserIdCache();
@@ -86,9 +91,14 @@ export class TwitterMonitorService {
       return this.userIdCache.get(handle) || null;
     }
     
-    // If not in cache, fetch from API
+    // If not in cache, fetch from API with logging
     try {
-      const user = await this.client.v2.userByUsername(handle);
+      const user = await this.apiLogger.wrapApiCall(
+        'users/by/username',
+        'TwitterMonitorService',
+        async () => await this.client.v2.userByUsername(handle),
+        { handle }
+      );
       
       if (!user || !user.data) {
         console.error(`User @${handle} not found.`);
@@ -192,8 +202,13 @@ export class TwitterMonitorService {
         console.log(`Fetching tweets for @${handle} since ${startTime.toISOString()}`);
       }
       
-      // Fetch tweets for the user with engagement metrics
-      const response = await this.client.v2.userTimeline(userId, requestParams);
+      // Fetch tweets for the user with engagement metrics and API logging
+      const response = await this.apiLogger.wrapApiCall(
+        'users/:id/tweets',
+        'TwitterMonitorService',
+        async () => await this.client.v2.userTimeline(userId, requestParams),
+        { userId, handle, ...requestParams }
+      );
       
       // Get the tweets from the response
       const tweets = [];

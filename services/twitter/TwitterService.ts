@@ -2,6 +2,7 @@ import { TwitterApi } from 'twitter-api-v2';
 import { config } from '../../config';
 import { PostContent } from '../../types';
 import { EngagementService, EngagementMetric } from '../engagement/EngagementService';
+import { ApiCallLogger } from '../monitoring/ApiCallLogger';
 
 /**
  * Token bucket for rate limiting
@@ -50,6 +51,7 @@ class TokenBucket {
 export class TwitterService {
     private client: TwitterApi;
     private static instance: TwitterService;
+    private apiLogger: ApiCallLogger;
     
     // Rate limiting properties
     public isRateLimited: boolean = false;
@@ -70,6 +72,9 @@ export class TwitterService {
         
         // Initialize the token bucket with Twitter's daily rate limit (250 requests per day)
         this.tokenBucket = new TokenBucket(250, 250);
+        
+        // Initialize the API call logger
+        this.apiLogger = ApiCallLogger.getInstance();
     }
 
     public static getInstance(): TwitterService {
@@ -217,17 +222,21 @@ export class TwitterService {
             }
         }
         
-        // Fetch fresh username
-        try {
-            const me = await this.client.v2.me();
-            this.cachedUsername = me.data.username;
-            this.lastUsernameCheck = now;
-            console.log(`Cached username: ${this.cachedUsername}`);
-            return this.cachedUsername;
-        } catch (error) {
+        // Fetch fresh username with API logging
+        return await this.apiLogger.wrapApiCall(
+            'users/me',
+            'TwitterService',
+            async () => {
+                const me = await this.client.v2.me();
+                this.cachedUsername = me.data.username;
+                this.lastUsernameCheck = now;
+                console.log(`Cached username: ${this.cachedUsername}`);
+                return this.cachedUsername;
+            }
+        ).catch(error => {
             console.error('Error getting own username:', error);
             return this.cachedUsername || 'Yona_AI_Music'; // Return cached value or fallback
-        }
+        });
     }
     
     /**
@@ -279,8 +288,13 @@ export class TwitterService {
                 console.log(`Fetching mentions since tweet ID: ${sinceId}`);
             }
             
-            // Search for recent mentions
-            const mentionsResponse = await this.client.v2.search(searchParams);
+            // Search for recent mentions with API logging
+            const mentionsResponse = await this.apiLogger.wrapApiCall(
+                'tweets/search/recent',
+                'TwitterService',
+                async () => await this.client.v2.search(searchParams),
+                searchParams
+            );
             
             // Extract the tweets from the response
             const mentions = mentionsResponse.tweets || [];
