@@ -1,7 +1,7 @@
 import { TwitterService } from '../services/twitter/TwitterService';
 import { ContentGenerator } from '../services/content/ContentGenerator';
 import { ImageTweetService } from '../services/content/ImageTweetService';
-import { startWebServer } from './web-server';
+import { startWebServer } from './web-server-complete';
 import { engagementScheduler } from './engagement-scheduler';
 import { config } from '../config';
 
