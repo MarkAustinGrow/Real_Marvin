@@ -193,6 +193,189 @@ export function startWebServer() {
       });
     }
   });
+
+  // Get tweets for a specific account
+  app.get('/api/account-monitor/tweets/:accountId', async (req: Request, res: Response) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      
+      if (isNaN(accountId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid account ID'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const tweets = await accountMonitorService.getCachedTweets(accountId);
+      
+      res.json({ 
+        success: true, 
+        tweets: tweets.map(tweet => ({
+          id: tweet.id,
+          tweet_text: tweet.tweet_text,
+          tweet_url: tweet.tweet_url,
+          created_at: tweet.created_at,
+          engagement_score: tweet.engagement_score || 0
+        }))
+      });
+    } catch (error: unknown) {
+      console.error('Error getting tweets:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // Add account endpoint
+  app.post('/api/account-monitor/add', async (req: Request, res: Response) => {
+    try {
+      const { handle, priority, activityLevel } = req.body;
+      
+      if (!handle) {
+        return res.status(400).json({
+          success: false,
+          message: 'Handle is required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const success = await accountMonitorService.addAccount(handle, priority || 3, activityLevel || 'medium');
+      
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Account added successfully'
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Failed to add account'
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error adding account:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // Remove account endpoint
+  app.post('/api/account-monitor/remove', async (req: Request, res: Response) => {
+    try {
+      const { accountId } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account ID is required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const success = await accountMonitorService.removeAccount(accountId);
+      
+      if (success) {
+        res.json({
+          success: true,
+          message: 'Account removed successfully'
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: 'Failed to remove account'
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error removing account:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // Fetch tweets for account endpoint
+  app.post('/api/account-monitor/fetch-tweets', async (req: Request, res: Response) => {
+    try {
+      const { accountId, count } = req.body;
+      
+      if (!accountId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Account ID is required'
+        });
+      }
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      
+      // Get the account first
+      const accounts = await accountMonitorService.getAllAccounts();
+      const account = accounts.find(a => a.id === accountId);
+      
+      if (!account) {
+        return res.status(404).json({
+          success: false,
+          message: 'Account not found'
+        });
+      }
+      
+      const success = await accountMonitorService.fetchAndCacheTweets(account, count || 20);
+      
+      if (success) {
+        // Get the cached tweets after fetching
+        const tweets = await accountMonitorService.getCachedTweets(accountId);
+        
+        res.json({
+          success: true,
+          message: `Fetched tweets successfully`,
+          tweets: tweets.map(tweet => ({
+            id: tweet.id,
+            tweet_text: tweet.tweet_text,
+            tweet_url: tweet.tweet_url,
+            created_at: tweet.created_at,
+            engagement_score: tweet.engagement_score || 0
+          }))
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Failed to fetch tweets'
+        });
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching tweets:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // Process accounts endpoint
+  app.post('/api/account-monitor/process', async (req: Request, res: Response) => {
+    try {
+      const { batchSize } = req.body;
+      
+      const accountMonitorService = AccountMonitorService.getInstance();
+      const processedCount = await accountMonitorService.processAccounts(batchSize || 10);
+      
+      res.json({
+        success: true,
+        message: `Processed ${processedCount} accounts successfully`,
+        processed: processedCount
+      });
+    } catch (error: unknown) {
+      console.error('Error processing accounts:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
   
   app.post('/api/account-monitor/update', async (req: Request, res: Response) => {
     try {
