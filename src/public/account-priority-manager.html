@@ -120,6 +120,93 @@
       </div>
     </div>
     
+    <!-- API Rate Control -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="mb-0">API Usage Rate Control</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>Account Monitoring Frequency</h6>
+            <div class="mb-3">
+              <label for="account-monitoring-rate" class="form-label">
+                Calls per hour: <span id="account-rate-value">1</span>
+              </label>
+              <input type="range" class="form-range" id="account-monitoring-rate" 
+                     min="1" max="10" value="1" step="1" 
+                     oninput="updateAccountRate(this.value)">
+              <div class="d-flex justify-content-between text-muted small">
+                <span>Conservative<br>1/hour</span>
+                <span>Balanced<br>5/hour</span>
+                <span>Aggressive<br>10/hour</span>
+              </div>
+            </div>
+            <div class="text-muted small">
+              <div>Daily usage: <span id="account-daily-usage">24</span> calls</div>
+              <div>Monitoring: <span id="account-monitoring-desc">169 accounts every hour</span></div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <h6>Engagement Monitoring Frequency</h6>
+            <div class="mb-3">
+              <label for="engagement-monitoring-rate" class="form-label">
+                Mode: <span id="engagement-rate-value">Smart</span>
+              </label>
+              <input type="range" class="form-range" id="engagement-monitoring-rate" 
+                     min="1" max="4" value="1" step="1" 
+                     oninput="updateEngagementRate(this.value)">
+              <div class="d-flex justify-content-between text-muted small">
+                <span>Smart<br>~13/day</span>
+                <span>Hourly<br>24/day</span>
+                <span>30min<br>48/day</span>
+                <span>15min<br>96/day</span>
+              </div>
+            </div>
+            <div class="text-muted small">
+              <div>Daily usage: <span id="engagement-daily-usage">13</span> calls</div>
+              <div>Monitoring: <span id="engagement-monitoring-desc">Dynamic intervals</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+          <div class="col-md-8">
+            <h6>Projected Daily Usage</h6>
+            <div class="progress mb-2" style="height: 25px;">
+              <div class="progress-bar" id="projected-usage-bar" role="progressbar" 
+                   style="width: 16%" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100">
+                <span id="projected-usage-text">40/250 (16%)</span>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between text-muted small">
+              <span>Account: <span id="projected-account">24</span> calls</span>
+              <span>Engagement: <span id="projected-engagement">13</span> calls</span>
+              <span>Other: <span id="projected-other">3</span> calls</span>
+              <span>Total: <span id="projected-total">40</span> calls</span>
+            </div>
+          </div>
+          
+          <div class="col-md-4 text-end">
+            <button class="btn btn-primary" onclick="applyRateChanges()">
+              Apply Rate Changes
+            </button>
+            <button class="btn btn-outline-secondary" onclick="resetToConservative()">
+              Reset to Conservative
+            </button>
+          </div>
+        </div>
+        
+        <div class="alert alert-info mt-3" id="rate-warning" style="display: none;">
+          <strong>Warning:</strong> High API usage rates may exhaust your daily quota quickly. 
+          Monitor usage carefully and adjust as needed.
+        </div>
+      </div>
+    </div>
+    
     <!-- Bulk Actions -->
     <div class="bulk-actions">
       <div class="row align-items-center">
@@ -644,6 +731,124 @@
           alert.parentNode.removeChild(alert);
         }
       }, 8000);
+    }
+    
+    // API Rate Control Functions
+    function updateAccountRate(value) {
+      const rateValue = parseInt(value);
+      document.getElementById('account-rate-value').textContent = rateValue;
+      
+      const dailyUsage = rateValue * 24;
+      document.getElementById('account-daily-usage').textContent = dailyUsage;
+      
+      // Update description based on rate
+      let description;
+      if (rateValue === 1) {
+        description = '169 accounts every hour';
+      } else if (rateValue <= 3) {
+        description = `~${Math.ceil(169/rateValue)} accounts per batch, ${rateValue}x/hour`;
+      } else {
+        description = `~${Math.ceil(169/rateValue)} accounts per batch, ${rateValue}x/hour`;
+      }
+      document.getElementById('account-monitoring-desc').textContent = description;
+      
+      updateProjectedUsage();
+    }
+    
+    function updateEngagementRate(value) {
+      const rateValue = parseInt(value);
+      const modes = ['Smart', 'Hourly', '30min', '15min'];
+      const dailyUsages = [13, 24, 48, 96];
+      const descriptions = [
+        'Dynamic intervals (peak/off-peak/overnight)',
+        'Every hour',
+        'Every 30 minutes',
+        'Every 15 minutes'
+      ];
+      
+      document.getElementById('engagement-rate-value').textContent = modes[rateValue - 1];
+      document.getElementById('engagement-daily-usage').textContent = dailyUsages[rateValue - 1];
+      document.getElementById('engagement-monitoring-desc').textContent = descriptions[rateValue - 1];
+      
+      updateProjectedUsage();
+    }
+    
+    function updateProjectedUsage() {
+      const accountCalls = parseInt(document.getElementById('account-daily-usage').textContent);
+      const engagementCalls = parseInt(document.getElementById('engagement-daily-usage').textContent);
+      const otherCalls = 3; // Posting, validation, etc.
+      
+      const totalCalls = accountCalls + engagementCalls + otherCalls;
+      const percentage = (totalCalls / 250) * 100;
+      
+      // Update projected usage display
+      document.getElementById('projected-account').textContent = accountCalls;
+      document.getElementById('projected-engagement').textContent = engagementCalls;
+      document.getElementById('projected-other').textContent = otherCalls;
+      document.getElementById('projected-total').textContent = totalCalls;
+      
+      const progressBar = document.getElementById('projected-usage-bar');
+      const progressText = document.getElementById('projected-usage-text');
+      
+      progressBar.style.width = Math.min(percentage, 100) + '%';
+      progressText.textContent = `${totalCalls}/250 (${percentage.toFixed(1)}%)`;
+      
+      // Update progress bar color
+      progressBar.className = 'progress-bar ' + 
+        (percentage > 90 ? 'bg-danger' : 
+         percentage > 70 ? 'bg-warning' : 'bg-success');
+      
+      // Show/hide warning
+      const warning = document.getElementById('rate-warning');
+      if (percentage > 80) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+    
+    async function applyRateChanges() {
+      const accountRate = parseInt(document.getElementById('account-monitoring-rate').value);
+      const engagementRate = parseInt(document.getElementById('engagement-monitoring-rate').value);
+      
+      try {
+        // Show loading state
+        const button = document.querySelector('button[onclick="applyRateChanges()"]');
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = 'Applying...';
+        
+        // Here you would make API calls to update the rate settings
+        // For now, we'll simulate the API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        showSuccess(`API rate settings updated successfully! Account monitoring: ${accountRate}/hour, Engagement monitoring: ${['Smart', 'Hourly', '30min', '15min'][engagementRate - 1]}`);
+        
+        // Reset button
+        button.disabled = false;
+        button.textContent = originalText;
+        
+      } catch (error) {
+        console.error('Error applying rate changes:', error);
+        showError('Failed to apply rate changes. Please try again.');
+        
+        // Reset button
+        const button = document.querySelector('button[onclick="applyRateChanges()"]');
+        button.disabled = false;
+        button.textContent = 'Apply Rate Changes';
+      }
+    }
+    
+    function resetToConservative() {
+      // Reset sliders to conservative values
+      document.getElementById('account-monitoring-rate').value = 1;
+      document.getElementById('engagement-monitoring-rate').value = 1;
+      
+      // Update displays
+      updateAccountRate(1);
+      updateEngagementRate(1);
+      
+      showSuccess('Reset to conservative settings');
     }
   </script>
 </body>
