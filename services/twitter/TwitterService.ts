@@ -107,7 +107,12 @@ export class TwitterService {
                 console.log(`Creating a reply to tweet ID: ${replyToTweetId}`);
             }
 
-            const result = await this.client.v2.tweet(tweetOptions);
+            const result = await this.apiLogger.wrapApiCall(
+                'tweets',
+                'TwitterService',
+                async () => await this.client.v2.tweet(tweetOptions),
+                tweetOptions
+            );
             return { 
                 success: true, 
                 message: `Tweet posted successfully with ID: ${result.data.id}`,
@@ -154,7 +159,12 @@ export class TwitterService {
     public async uploadMedia(mediaPath: string): Promise<string> {
         try {
             console.log(`Uploading media from path: ${mediaPath}`);
-            const mediaId = await this.client.v1.uploadMedia(mediaPath);
+            const mediaId = await this.apiLogger.wrapApiCall(
+                'media/upload',
+                'TwitterService',
+                async () => await this.client.v1.uploadMedia(mediaPath),
+                { mediaPath }
+            );
             console.log(`Media uploaded successfully with ID: ${mediaId}`);
             return mediaId;
         } catch (error) {

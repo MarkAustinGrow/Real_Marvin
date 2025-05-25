@@ -360,7 +360,11 @@ export class TwitterMonitorService {
   public async checkRateLimits(): Promise<{ success: boolean; rateLimitInfo?: RateLimitInfo; error?: any }> {
     try {
       // Make a lightweight API call to check rate limits
-      const response = await this.client.v2.get('users/me');
+      const response = await this.apiLogger.wrapApiCall(
+        'users/me',
+        'TwitterMonitorService',
+        async () => await this.client.v2.get('users/me')
+      );
       
       // Extract rate limit information
       const rateLimitInfo = (response as any).rateLimit;
