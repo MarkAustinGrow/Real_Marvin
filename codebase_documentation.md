@@ -760,3 +760,43 @@ For more details, see `ENGAGEMENT_SYSTEM.md`.
 
 ## License
 [Add appropriate license information]
+
+---
+
+## Current Issues and Next Steps
+
+### Account Priority Manager Frontend Issue (URGENT - IN PROGRESS)
+
+**Date**: May 25, 2025  
+**Status**: CORS fix deployed successfully, frontend JavaScript needs completion  
+**Priority**: HIGH - Blocking web interface functionality
+
+#### Problem Summary
+The Account Priority Manager at `http://real.marvn.club:3000/account-priority-manager.html` shows "Loading..." instead of displaying real data from the API.
+
+#### Root Cause Analysis
+1. **CORS Issue (RESOLVED)**: ✅ Browser was blocking API calls due to missing CORS headers
+2. **Frontend JavaScript Issue (IN PROGRESS)**: ❌ HTML file has incomplete JavaScript functions
+
+#### Progress Made
+- ✅ **CORS Fix Deployed**: Added comprehensive CORS middleware to `src/web-server-with-rate-settings.ts`
+- ✅ **Git Commits**: Both CORS fix and partial frontend fix committed to X-scrape-integration branch
+- ❌ **Frontend Completion**: JavaScript functions still incomplete in main HTML file
+
+#### Technical Details
+
+**Files Involved**:
+- `src/public/account-priority-manager.html` - Main file (INCOMPLETE JavaScript)
+- `src/public/account-priority-manager-with-db.html` - Working reference file (COMPLETE)
+- `src/web-server-with-rate-settings.ts` - CORS fix applied (DEPLOYED)
+
+**Missing JavaScript Functions** (around line 749):
+- `showError()` - Incomplete function for error notifications
+- `updateAccountRate()` - Missing rate control slider handler
+- `updateEngagementRate()` - Missing engagement rate slider handler  
+- `applyRateChanges()` - Missing function to save rate settings to database
+- `resetToConservative()` - Missing function to reset rate settings
+
+**Backend APIs** (All working correctly):
+- `/api/account-monitor/accounts-enhanced` - Returns account data with API usage stats
+- `/api/rate

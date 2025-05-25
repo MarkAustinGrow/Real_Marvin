@@ -726,7 +726,6 @@
     }
     
     function showSuccess(message) {
-      // Simple success notification
       const alert = document.createElement('div');
       alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
       alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
@@ -744,6 +743,150 @@
     }
     
     function showError(message) {
-      // Simple error notification
       const alert = document.createElement('div');
-      alert.className = 'alert
+      alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+      alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+      alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(alert);
+      
+      setTimeout(() => {
+        if (alert.parentNode) {
+          alert.parentNode.removeChild(alert);
+        }
+      }, 5000);
+    }
+    
+    function updateAccountRate(value) {
+      const rateValue = parseInt(value);
+      document.getElementById('account-rate-value').textContent = rateValue;
+      
+      // Calculate daily usage (24 hours * rate per hour)
+      const dailyUsage = 24 * rateValue;
+      document.getElementById('account-daily-usage').textContent = dailyUsage;
+      
+      // Update monitoring description
+      const totalAccounts = allAccounts.length || 169; // fallback to 169 if not loaded yet
+      const accountsPerCall = Math.ceil(totalAccounts / rateValue);
+      document.getElementById('account-monitoring-desc').textContent = 
+        `${accountsPerCall} accounts every ${rateValue === 1 ? 'hour' : Math.round(60/rateValue) + ' minutes'}`;
+      
+      // Update projected usage
+      updateProjectedUsage();
+      
+      // Show warning for high rates
+      const warning = document.getElementById('rate-warning');
+      if (rateValue >= 8) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+    
+    function updateEngagementRate(value) {
+      const rateValue = parseInt(value);
+      const modes = ['Smart', 'Hourly', '30min', '15min'];
+      const dailyUsage = [13, 24, 48, 96];
+      const descriptions = [
+        'Dynamic intervals',
+        '24 calls per day',
+        '48 calls per day', 
+        '96 calls per day'
+      ];
+      
+      document.getElementById('engagement-rate-value').textContent = modes[rateValue - 1];
+      document.getElementById('engagement-daily-usage').textContent = dailyUsage[rateValue - 1];
+      document.getElementById('engagement-monitoring-desc').textContent = descriptions[rateValue - 1];
+      
+      // Update projected usage
+      updateProjectedUsage();
+      
+      // Show warning for high rates
+      const warning = document.getElementById('rate-warning');
+      if (rateValue >= 3) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+    
+    function updateProjectedUsage() {
+      const accountRate = parseInt(document.getElementById('account-monitoring-rate').value);
+      const engagementRate = parseInt(document.getElementById('engagement-monitoring-rate').value);
+      
+      const accountDaily = 24 * accountRate;
+      const engagementDaily = [13, 24, 48, 96][engagementRate - 1];
+      const otherDaily = 3; // Other API calls (tweets, etc.)
+      const totalDaily = accountDaily + engagementDaily + otherDaily;
+      
+      // Update display
+      document.getElementById('projected-account').textContent = accountDaily;
+      document.getElementById('projected-engagement').textContent = engagementDaily;
+      document.getElementById('projected-other').textContent = otherDaily;
+      document.getElementById('projected-total').textContent = totalDaily;
+      
+      // Update progress bar
+      const percentage = Math.min((totalDaily / 250) * 100, 100);
+      const progressBar = document.getElementById('projected-usage-bar');
+      const progressText = document.getElementById('projected-usage-text');
+      
+      progressBar.style.width = percentage + '%';
+      progressBar.setAttribute('aria-valuenow', totalDaily);
+      progressText.textContent = `${totalDaily}/250 (${percentage.toFixed(1)}%)`;
+      
+      // Update color based on usage
+      progressBar.className = 'progress-bar ' + 
+        (percentage > 80 ? 'bg-danger' : 
+         percentage > 60 ? 'bg-warning' : 'bg-success');
+    }
+    
+    async function applyRateChanges() {
+      const accountRate = parseInt(document.getElementById('account-monitoring-rate').value);
+      const engagementRate = parseInt(document.getElementById('engagement-monitoring-rate').value);
+      
+      try {
+        const response = await fetch('/api/rate-settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            account_monitoring_rate: accountRate,
+            engagement_monitoring_rate: engagementRate
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showSuccess('Rate settings updated successfully!');
+          console.log('Rate settings saved to database:', {
+            account_monitoring_rate: accountRate,
+            engagement_monitoring_rate: engagementRate
+          });
+        } else {
+          showError('Failed to save rate settings: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error saving rate settings:', error);
+        showError('Failed to save rate settings. Please try again.');
+      }
+    }
+    
+    function resetToConservative() {
+      // Reset sliders to conservative values
+      document.getElementById('account-monitoring-rate').value = 1;
+      document.getElementById('engagement-monitoring-rate').value = 1;
+      
+      // Update displays
+      updateAccountRate(1);
+      updateEngagementRate(1);
+      
+      // Apply the changes
+      applyRateChanges();
+    }
+  </script>
+</body>
+</html>

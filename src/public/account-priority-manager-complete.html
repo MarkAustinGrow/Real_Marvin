@@ -361,11 +361,38 @@
     // Load data on page load
     document.addEventListener('DOMContentLoaded', function() {
       loadAccountData();
+      loadRateSettings();
       
       // Set up event listeners
       document.getElementById('select-all').addEventListener('change', toggleSelectAll);
       document.getElementById('header-select-all').addEventListener('change', toggleSelectAll);
     });
+    
+    // Load rate settings from database
+    async function loadRateSettings() {
+      try {
+        const response = await fetch('/api/rate-settings');
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update the sliders with database values
+          document.getElementById('account-monitoring-rate').value = data.settings.account_monitoring_rate;
+          document.getElementById('engagement-monitoring-rate').value = data.settings.engagement_monitoring_rate;
+          
+          // Update the displays
+          updateAccountRate(data.settings.account_monitoring_rate);
+          updateEngagementRate(data.settings.engagement_monitoring_rate);
+          
+          console.log('Rate settings loaded from database:', data.settings);
+        } else {
+          console.error('Error loading rate settings:', data.message);
+          showError('Failed to load rate settings: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error loading rate settings:', error);
+        showError('Failed to load rate settings. Using defaults.');
+      }
+    }
     
     async function loadAccountData() {
       try {
@@ -695,10 +722,10 @@
       selectedAccounts.clear();
       updateSelectionUI();
       loadAccountData();
+      loadRateSettings();
     }
     
     function showSuccess(message) {
-      // Simple success notification
       const alert = document.createElement('div');
       alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
       alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
@@ -716,140 +743,6 @@
     }
     
     function showError(message) {
-      // Simple error notification
       const alert = document.createElement('div');
       alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
-      alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-      alert.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      `;
-      document.body.appendChild(alert);
-      
-      setTimeout(() => {
-        if (alert.parentNode) {
-          alert.parentNode.removeChild(alert);
-        }
-      }, 8000);
-    }
-    
-    // API Rate Control Functions
-    function updateAccountRate(value) {
-      const rateValue = parseInt(value);
-      document.getElementById('account-rate-value').textContent = rateValue;
-      
-      const dailyUsage = rateValue * 24;
-      document.getElementById('account-daily-usage').textContent = dailyUsage;
-      
-      // Update description based on rate
-      let description;
-      if (rateValue === 1) {
-        description = '169 accounts every hour';
-      } else if (rateValue <= 3) {
-        description = `~${Math.ceil(169/rateValue)} accounts per batch, ${rateValue}x/hour`;
-      } else {
-        description = `~${Math.ceil(169/rateValue)} accounts per batch, ${rateValue}x/hour`;
-      }
-      document.getElementById('account-monitoring-desc').textContent = description;
-      
-      updateProjectedUsage();
-    }
-    
-    function updateEngagementRate(value) {
-      const rateValue = parseInt(value);
-      const modes = ['Smart', 'Hourly', '30min', '15min'];
-      const dailyUsages = [13, 24, 48, 96];
-      const descriptions = [
-        'Dynamic intervals (peak/off-peak/overnight)',
-        'Every hour',
-        'Every 30 minutes',
-        'Every 15 minutes'
-      ];
-      
-      document.getElementById('engagement-rate-value').textContent = modes[rateValue - 1];
-      document.getElementById('engagement-daily-usage').textContent = dailyUsages[rateValue - 1];
-      document.getElementById('engagement-monitoring-desc').textContent = descriptions[rateValue - 1];
-      
-      updateProjectedUsage();
-    }
-    
-    function updateProjectedUsage() {
-      const accountCalls = parseInt(document.getElementById('account-daily-usage').textContent);
-      const engagementCalls = parseInt(document.getElementById('engagement-daily-usage').textContent);
-      const otherCalls = 3; // Posting, validation, etc.
-      
-      const totalCalls = accountCalls + engagementCalls + otherCalls;
-      const percentage = (totalCalls / 250) * 100;
-      
-      // Update projected usage display
-      document.getElementById('projected-account').textContent = accountCalls;
-      document.getElementById('projected-engagement').textContent = engagementCalls;
-      document.getElementById('projected-other').textContent = otherCalls;
-      document.getElementById('projected-total').textContent = totalCalls;
-      
-      const progressBar = document.getElementById('projected-usage-bar');
-      const progressText = document.getElementById('projected-usage-text');
-      
-      progressBar.style.width = Math.min(percentage, 100) + '%';
-      progressText.textContent = `${totalCalls}/250 (${percentage.toFixed(1)}%)`;
-      
-      // Update progress bar color
-      progressBar.className = 'progress-bar ' + 
-        (percentage > 90 ? 'bg-danger' : 
-         percentage > 70 ? 'bg-warning' : 'bg-success');
-      
-      // Show/hide warning
-      const warning = document.getElementById('rate-warning');
-      if (percentage > 80) {
-        warning.style.display = 'block';
-      } else {
-        warning.style.display = 'none';
-      }
-    }
-    
-    async function applyRateChanges() {
-      const accountRate = parseInt(document.getElementById('account-monitoring-rate').value);
-      const engagementRate = parseInt(document.getElementById('engagement-monitoring-rate').value);
-      
-      try {
-        // Show loading state
-        const button = document.querySelector('button[onclick="applyRateChanges()"]');
-        const originalText = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Applying...';
-        
-        // Here you would make API calls to update the rate settings
-        // For now, we'll simulate the API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        showSuccess(`API rate settings updated successfully! Account monitoring: ${accountRate}/hour, Engagement monitoring: ${['Smart', 'Hourly', '30min', '15min'][engagementRate - 1]}`);
-        
-        // Reset button
-        button.disabled = false;
-        button.textContent = originalText;
-        
-      } catch (error) {
-        console.error('Error applying rate changes:', error);
-        showError('Failed to apply rate changes. Please try again.');
-        
-        // Reset button
-        const button = document.querySelector('button[onclick="applyRateChanges()"]');
-        button.disabled = false;
-        button.textContent = 'Apply Rate Changes';
-      }
-    }
-    
-    function resetToConservative() {
-      // Reset sliders to conservative values
-      document.getElementById('account-monitoring-rate').value = 1;
-      document.getElementById('engagement-monitoring-rate').value = 1;
-      
-      // Update displays
-      updateAccountRate(1);
-      updateEngagementRate(1);
-      
-      showSuccess('Reset to conservative settings');
-    }
-  </script>
-</body>
-</html>
+      alert.style.cssText
