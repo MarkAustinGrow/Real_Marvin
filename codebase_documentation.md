@@ -417,6 +417,28 @@ The engagement responses use:
 
 ## Recent Improvements
 
+### Web Interface API Endpoints Fix (May 26, 2025)
+**RESOLVED**: Complete fix for the main web interface functionality:
+
+1. **Issue Identified**:
+   - Web interface was failing with "Cannot GET /api/engagement-rules" errors
+   - Blog post generation and tweet generation were not working
+   - Root cause: Missing API endpoints in `web-server-with-rate-settings.ts`
+
+2. **Solution Implemented**:
+   - **Added Missing Endpoints**: Added `/api/engagement/rules` (GET/POST), `/api/generate-blog-post`, `/api/test-tweet`, and `/api/test-blog-post`
+   - **Fixed TypeScript Errors**: Replaced problematic blog post scheduler calls with direct database queries
+   - **Maintained Existing Features**: All rate settings and account monitoring functionality preserved
+
+3. **Technical Details**:
+   - Updated `src/web-server-with-rate-settings.ts` with complete endpoint coverage
+   - Added proper error handling and response formatting
+   - Implemented dry run modes for safe testing
+   - Fixed engagement rules loading from EngagementService
+   - Added blog post testing with database integration
+
+**Result**: All web interface features now work correctly - engagement rules load properly, blog post generation functions, tweet generation and preview work, and all existing API monitoring features remain intact.
+
 ### Account Priority Manager Frontend Fix (May 25, 2025)
 **RESOLVED**: Complete frontend fix for the Account Priority Manager web interface:
 
@@ -753,38 +775,4 @@ For more details, see `ENGAGEMENT_SYSTEM.md`.
    - Check network connectivity
    - Verify RLS policies
 
-2. Content Generation Issues
-   - Check API rate limits
-   - Verify API keys
-   - Check character data format
-
-3. Performance Issues
-   - Monitor database query performance
-   - Check API response times
-   - Monitor memory usage
-
-4. Engagement System Issues
-   - Verify Twitter API credentials and rate limits
-   - Check Grok API connectivity
-   - Verify engagement_metrics table structure
-   - Review engagement rules configuration
-
-5. **Rate Limiting Issues**
-   - Monitor API usage with `./test-rate-limits.sh` or `test-rate-limits.bat`
-   - Check for emergency quota mode activation in logs
-   - Verify smart scheduling is working (variable intervals)
-   - Look for "Skipping expensive engagement calls" messages
-   - Ensure quota resets are being tracked properly
-
-6. **Web Interface Issues**
-   - ✅ **Account Priority Manager**: Previously showed "Loading..." instead of real data - **RESOLVED** (May 25, 2025)
-   - Verify web server is running on correct port (default: 3000)
-   - Check browser console for JavaScript errors
-   - Ensure proper authentication (admin username/password)
-
-## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5.
+2. Content
