@@ -362,6 +362,248 @@ export function startWebServer() {
     }
   });
   
+  // Engagement rules endpoint
+  app.get('/api/engagement/rules', async (req: Request, res: Response) => {
+    try {
+      const engagementService = EngagementService.getInstance();
+      const rules = await engagementService.getRules();
+      
+      res.json({ 
+        success: true,
+        rules: rules || []
+      });
+    } catch (error: unknown) {
+      console.error('Error getting engagement rules:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // Update engagement rules endpoint
+  app.post('/api/engagement/rules', async (req: Request, res: Response) => {
+    try {
+      const { rules } = req.body;
+      
+      if (!rules || !Array.isArray(rules)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rules array is required'
+        });
+      }
+      
+      const engagementService = EngagementService.getInstance();
+      await engagementService.updateRules(rules);
+      
+      res.json({
+        success: true,
+        message: 'Engagement rules updated successfully'
+      });
+    } catch (error: unknown) {
+      console.error('Error updating engagement rules:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // API endpoints for testing
+  app.post('/api/generate-blog-post', async (req: Request, res: Response) => {
+    try {
+      const theme = req.body.theme || 'technology';
+      const useMemory = req.body.useMemory !== false;
+      const dryRun = req.body.dryRun === true;
+      
+      const contentGenerator = ContentGenerator.getInstance();
+      await contentGenerator.initialize();
+      
+      const blogPost = await contentGenerator.generateBlogPost(theme, useMemory);
+      
+      if (!dryRun) {
+        const supabaseService = SupabaseService.getInstance();
+        const { data, error } = await supabaseService.client
+          .from('blog_posts')
+          .insert({
+            title: blogPost.title,
+            markdown: blogPost.content,
+            excerpt: blogPost.excerpt,
+            status: req.body.status || 'draft',
+            created_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+          
+        if (error) {
+          console.error('Error saving blog post:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to save blog post to database',
+            blogPost
+          });
+        }
+        
+        const enhancer = new BlogPostEnhancer();
+        await enhancer.enhanceBlogPost(data.id);
+        
+        return res.json({
+          success: true,
+          message: 'Blog post generated, saved, and enhanced successfully',
+          blogPost,
+          id: data.id,
+          status: req.body.status || 'draft'
+        });
+      }
+      
+      return res.json({
+        success: true,
+        message: 'Blog post generated successfully (dry run)',
+        blogPost,
+        dryRun: true
+      });
+    } catch (error: unknown) {
+      console.error('Error in generate-blog-post endpoint:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
+  app.post('/api/test-tweet', async (req: Request, res: Response) => {
+    try {
+      const category = req.body.category || 'Toolbox';
+      const twitterService = TwitterService.getInstance();
+      const contentGenerator = ContentGenerator.getInstance();
+      
+      await contentGenerator.initialize();
+      const tweetContent = await contentGenerator.generateTweet(category);
+      const formattedContent = twitterService.formatContent(tweetContent);
+      
+      if (req.body.previewOnly) {
+        return res.json({
+          success: true,
+          preview: true,
+          content: formattedContent
+        });
+      }
+      
+      const postResult = await twitterService.postTweet(formattedContent);
+      
+      res.json({
+        success: postResult.success,
+        message: postResult.message,
+        content: formattedContent
+      });
+    } catch (error: unknown) {
+      console.error('Error in test-tweet endpoint:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+
+  // Test blog post endpoint
+  app.post('/api/test-blog-post', async (req: Request, res: Response) => {
+    try {
+      const dryRun = req.body.dryRun !== false; // Default to true for safety
+      
+      // Manually check for blog posts ready to tweet
+      const supabaseService = SupabaseService.getInstance();
+      const { data: blogPosts, error } = await supabaseService.client
+        .from('blog_posts')
+        .select('*')
+        .eq('status', 'ready_to_tweet')
+        .order('created_at', { ascending: true })
+        .limit(5);
+        
+      if (error) {
+        console.error('Error fetching blog posts:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to fetch blog posts from database'
+        });
+      }
+      
+      if (blogPosts.length === 0) {
+        return res.json({
+          success: true,
+          message: 'No blog posts found with "ready_to_tweet" status',
+          posts: []
+        });
+      }
+      
+      const results = [];
+      
+      for (const post of blogPosts) {
+        if (dryRun) {
+          results.push({
+            id: post.id,
+            title: post.title,
+            status: 'would_post',
+            message: `Would post: ${post.title}`
+          });
+        } else {
+          // Actually post the blog post
+          try {
+            const twitterService = TwitterService.getInstance();
+            const tweetText = `${post.title}\n\n${post.excerpt || 'New blog post available!'}\n\nRead more: ${post.post_url || 'Link coming soon'}`;
+            
+            const postResult = await twitterService.postTweet({
+              text: tweetText,
+              platform: 'Twitter'
+            });
+            
+            if (postResult.success) {
+              // Update blog post status
+              await supabaseService.client
+                .from('blog_posts')
+                .update({ status: 'posted' })
+                .eq('id', post.id);
+                
+              results.push({
+                id: post.id,
+                title: post.title,
+                status: 'success',
+                message: 'Posted successfully'
+              });
+            } else {
+              results.push({
+                id: post.id,
+                title: post.title,
+                status: 'error',
+                error: postResult.message
+              });
+            }
+          } catch (error: unknown) {
+            results.push({
+              id: post.id,
+              title: post.title,
+              status: 'error',
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: dryRun 
+          ? `Found ${blogPosts.length} blog post(s) ready to tweet (dry run)` 
+          : `Processed ${blogPosts.length} blog post(s)`,
+        posts: results
+      });
+    } catch (error: unknown) {
+      console.error('Error in test-blog-post endpoint:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unknown error occurred'
+      });
+    }
+  });
+  
   // Get categories endpoint
   app.get('/api/categories', (req: Request, res: Response) => {
     const categories = [
